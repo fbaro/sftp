@@ -1,0 +1,20 @@
+group 'it.fb.ftp'
+version '0.0-SNAPSHOT'
+
+apply plugin: 'application'
+
+mainClassName = "Test"
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'com.google.guava:guava:23.6-jre'
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '4.4.1'
+}

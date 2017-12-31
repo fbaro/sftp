@@ -14,6 +14,6 @@ public class Attrs {
     }
 
     public static Optional<Attrs> read(@Nonnull Decoder dec) {
-
+        return Optional.empty();
     }
 }

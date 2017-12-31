@@ -4,7 +4,7 @@ import it.ftb.sftp.network.Encoder;
 
 public abstract class AbstractPacket {
 
-    protected final PacketType type;
+    private final PacketType type;
 
     AbstractPacket(PacketType type) {
         this.type = type;
@@ -16,5 +16,7 @@ public abstract class AbstractPacket {
 
     public abstract void write(Encoder enc);
 
-    public abstract <P, R> R visit(PacketVisitor<? super P, ? extends R> visitor, P parameter);
+    public abstract <P, R> R visit(P parameter, PacketVisitor<? super P, ? extends R> visitor);
+
+    public abstract <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor);
 }

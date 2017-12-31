@@ -1,5 +1,10 @@
 package it.ftb.sftp.packet;
 
+import com.google.common.collect.ImmutableMap;
+
+import java.util.Arrays;
+import java.util.stream.Collectors;
+
 public enum PacketType {
 
     SSH_FXP_INIT(1, SshFxpInit.FACTORY),
@@ -24,9 +29,9 @@ public enum PacketType {
     SSH_FXP_LINK(21, null),
     SSH_FXP_BLOCK(22, null),
     SSH_FXP_UNBLOCK(23, null),
-    SSH_FXP_STATUS(101, null),
+    SSH_FXP_STATUS(101, SshFxpStatus.FACTORY),
     SSH_FXP_HANDLE(102, SshFxpHandle.FACTORY),
-    SSH_FXP_DATA(103, null),
+    SSH_FXP_DATA(103, SshFxpData.FACTORY),
     SSH_FXP_NAME(104, null),
     SSH_FXP_ATTRS(105, null),
     SSH_FXP_EXTENDED(200, null),
@@ -47,4 +52,13 @@ public enum PacketType {
     public PacketFactory<?> getPacketFactory() {
         return packetFactory;
     }
+
+    public static PacketType fromCode(int code) {
+        return TYPES_BY_CODE.get(code);
+    }
+
+    private static final ImmutableMap<Integer, PacketType> TYPES_BY_CODE =
+            ImmutableMap.copyOf(
+                    Arrays.stream(PacketType.values())
+                            .collect(Collectors.toMap(PacketType::getCode, x -> x)));
 }

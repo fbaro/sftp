@@ -11,4 +11,6 @@ public interface Encoder {
     Encoder write(Bytes b);
 
     Encoder write(long l);
+
+    Encoder write(boolean b);
 }

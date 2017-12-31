@@ -2,6 +2,7 @@ package it.ftb.sftp.packet;
 
 import it.ftb.sftp.network.Decoder;
 import it.ftb.sftp.network.Encoder;
+import it.ftb.sftp.network.StringWithLength;
 
 import javax.annotation.Nonnull;
 import java.util.Optional;
@@ -30,11 +31,11 @@ public class ExtensionPair {
     }
 
     public static Optional<ExtensionPair> read(@Nonnull Decoder dec) {
-        Optional<String> name = dec.readOptString();
+        Optional<StringWithLength> name = dec.readOptString();
         if (!name.isPresent()) {
             return Optional.empty();
         }
-        String data = dec.readString();
-        return Optional.of(new ExtensionPair(name.get(), data));
+        String data = dec.readString().getString();
+        return Optional.of(new ExtensionPair(name.get().getString(), data));
     }
 }

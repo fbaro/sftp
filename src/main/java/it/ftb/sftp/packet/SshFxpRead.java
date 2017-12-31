@@ -10,11 +10,23 @@ public class SshFxpRead extends RequestPacket {
     private final long uOffset;
     private final int uLength;
 
-    public SshFxpRead(int uRequestId, Bytes handle, long uOffset, int uLength) {
+    private SshFxpRead(int uRequestId, Bytes handle, long uOffset, int uLength) {
         super(PacketType.SSH_FXP_READ, uRequestId);
         this.handle = handle;
         this.uOffset = uOffset;
         this.uLength = uLength;
+    }
+
+    public Bytes getHandle() {
+        return handle;
+    }
+
+    public long getuOffset() {
+        return uOffset;
+    }
+
+    public int getuLength() {
+        return uLength;
     }
 
     @Override
@@ -26,8 +38,13 @@ public class SshFxpRead extends RequestPacket {
     }
 
     @Override
-    public <P, R> R visit(PacketVisitor<? super P, ? extends R> visitor, P parameter) {
+    public <P, R> R visit(P parameter, PacketVisitor<? super P, ? extends R> visitor) {
         return visitor.visit(this, parameter);
+    }
+
+    @Override
+    public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
+        visitor.visit(this, parameter);
     }
 
     public static final PacketFactory<SshFxpRead> FACTORY = new PacketFactory<SshFxpRead>() {

@@ -6,19 +6,35 @@ import it.ftb.sftp.network.Encoder;
 import java.util.Optional;
 import java.util.OptionalInt;
 
-public class SshFxpOpen extends RequestPacket {
+public final class SshFxpOpen extends RequestPacket {
 
     private final String filename;
     private final int uDesideredAccess;
     private final int uFlags;
     private final Attrs attrs;
 
-    public SshFxpOpen(int uRequestId, String filename, int uDesideredAccess, int uFlags, Attrs attrs) {
+    private SshFxpOpen(int uRequestId, String filename, int uDesideredAccess, int uFlags, Attrs attrs) {
         super(PacketType.SSH_FXP_OPEN, uRequestId);
         this.filename = filename;
         this.uDesideredAccess = uDesideredAccess;
         this.uFlags = uFlags;
         this.attrs = attrs;
+    }
+
+    public String getFilename() {
+        return filename;
+    }
+
+    public int getuDesideredAccess() {
+        return uDesideredAccess;
+    }
+
+    public int getuFlags() {
+        return uFlags;
+    }
+
+    public Attrs getAttrs() {
+        return attrs;
     }
 
     @Override
@@ -31,17 +47,22 @@ public class SshFxpOpen extends RequestPacket {
     }
 
     @Override
-    public <P, R> R visit(PacketVisitor<? super P, ? extends R> visitor, P parameter) {
+    public <P, R> R visit(P parameter, PacketVisitor<? super P, ? extends R> visitor) {
         return visitor.visit(this, parameter);
+    }
+
+    @Override
+    public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
+        visitor.visit(this, parameter);
     }
 
     public static final PacketFactory<SshFxpOpen> FACTORY = new PacketFactory<SshFxpOpen>() {
         @Override
         public SshFxpOpen read(Decoder decoder) {
             int requestId = decoder.readInt();
-            String filename = decoder.readString();
-            OptionalInt desideredAccess = decoder.readOptInt32();
-            OptionalInt flags = decoder.readOptInt32();
+            String filename = decoder.readString().getString();
+            OptionalInt desideredAccess = decoder.readOptInt();
+            OptionalInt flags = decoder.readOptInt();
             Optional<Attrs> attrs = Attrs.read(decoder);
             return new SshFxpOpen(requestId, filename, desideredAccess.orElse(0), flags.orElse(0), attrs.orElse(Attrs.EMPTY));
         }

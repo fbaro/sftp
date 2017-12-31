@@ -12,13 +12,19 @@ public interface Decoder {
 
     OptionalLong readOptLong();
 
-    Optional<String> readOptString();
+    Optional<StringWithLength> readOptString();
 
-    String readString();
+    Optional<Boolean> readOptBoolean();
+
+    StringWithLength readString();
 
     Bytes readBytes();
 
     int readInt();
 
     long readLong();
+
+    boolean readBoolean();
+
+    byte readByte();
 }

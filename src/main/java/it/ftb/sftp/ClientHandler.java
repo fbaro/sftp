@@ -11,9 +11,9 @@ import org.slf4j.LoggerFactory;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ByteChannel;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
-import java.nio.channels.SocketChannel;
 import java.nio.file.FileSystem;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -25,12 +25,12 @@ import java.util.concurrent.BlockingQueue;
 public final class ClientHandler implements AutoCloseable {
 
     private final Logger log = LoggerFactory.getLogger(ClientHandler.class);
-    private final SocketChannel clientChannel;
+    private final ByteChannel clientChannel;
     private final FileSystem fileSystem;
     private Reader reader;
     private Writer writer;
 
-    private ClientHandler(SocketChannel clientChannel, FileSystem fileSystem) {
+    private ClientHandler(ByteChannel clientChannel, FileSystem fileSystem) {
         this.clientChannel = clientChannel;
         this.fileSystem = fileSystem;
     }
@@ -42,7 +42,7 @@ public final class ClientHandler implements AutoCloseable {
         writer.start();
     }
 
-    public static ClientHandler start(SocketChannel clientChannel, FileSystem fileSystem) {
+    public static ClientHandler start(ByteChannel clientChannel, FileSystem fileSystem) {
         ClientHandler ret = new ClientHandler(clientChannel, fileSystem);
         ret.start();
         return ret;
@@ -176,15 +176,14 @@ public final class ClientHandler implements AutoCloseable {
     private final class Writer extends Thread {
 
         private final BlockingQueue<AbstractPacket> toWrite = new ArrayBlockingQueue<>(16);
-        private final ChannelEncoder encoder = new ChannelEncoder(clientChannel);
+        private final PacketEncoder encoder = new PacketEncoder(clientChannel);
 
         @Override
         public void run() {
             try {
                 AbstractPacket packet;
                 while (POISON != (packet = toWrite.take())) {
-                    packet.write(encoder);
-                    encoder.flush();
+                    encoder.write(packet);
                 }
             } catch (RuntimeIOException ex) {
                 log.debug("Error writing to client", ex);

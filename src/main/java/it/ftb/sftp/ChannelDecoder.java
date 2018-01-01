@@ -47,7 +47,7 @@ final class ChannelDecoder implements Decoder {
             }
             buffer.flip();
         }
-        if (totRead < numBytes && numBytes <= 8) {
+        if (buffer.remaining() < numBytes && numBytes <= 8) {
             throw new IllegalStateException("No space in buffer for primitive read");
         }
         return true;

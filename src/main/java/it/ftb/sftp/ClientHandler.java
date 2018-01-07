@@ -105,11 +105,13 @@ public final class ClientHandler implements AutoCloseable {
                 PacketDecoder pd = new PacketDecoder(decoder, packetLength);
                 int packetCode = pd.readByte() & 0xff;
                 PacketType packetType = PacketType.fromCode(packetCode);
-                if (packetType != null) {
+                if (packetType == null) {
+                    log.warn("Received unsupported packet code {}, {} bytes long", packetCode, packetLength);
+                    pd.skipRemaining();
+                } else {
+                    log.trace("Received packet {}, {} bytes long", packetType, packetLength);
                     return packetType.getPacketFactory().read(pd);
                 }
-                log.debug("Received unsupported packet code: {}", packetCode);
-                pd.skipRemaining();
             } while (true);
         }
 

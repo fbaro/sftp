@@ -63,7 +63,7 @@ public final class SshFxpOpen extends RequestPacket {
             String filename = decoder.readString().getString();
             OptionalInt desideredAccess = decoder.readOptInt();
             OptionalInt flags = decoder.readOptInt();
-            Optional<Attrs> attrs = Attrs.read(decoder);
+            Optional<Attrs> attrs = Attrs.readOpt(decoder);
             return new SshFxpOpen(requestId, filename, desideredAccess.orElse(0), flags.orElse(0), attrs.orElse(Attrs.EMPTY));
         }
     };

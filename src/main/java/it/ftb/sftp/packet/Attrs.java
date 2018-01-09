@@ -13,7 +13,11 @@ public class Attrs {
     public void write(Encoder enc) {
     }
 
-    public static Optional<Attrs> read(@Nonnull Decoder dec) {
+    public static Attrs read(@Nonnull Decoder dec) {
+        return EMPTY;
+    }
+
+    public static Optional<Attrs> readOpt(@Nonnull Decoder dec) {
         return Optional.empty();
     }
 }

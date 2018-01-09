@@ -35,4 +35,12 @@ public interface VoidPacketVisitor<P> {
     default void visit(SshFxpStatus packet, P parameter) {
         visit((AbstractPacket) packet, parameter);
     }
+
+    default void visit(SshFxpName packet, P parameter) {
+        visit((AbstractPacket) packet, parameter);
+    }
+
+    default void visit(SshFxpRealpath packet, P parameter) {
+        visit((AbstractPacket) packet, parameter);
+    }
 }

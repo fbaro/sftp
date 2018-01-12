@@ -1,7 +1,9 @@
 package it.ftb.sftp.packet;
 
+import com.google.common.collect.ImmutableList;
 import it.ftb.sftp.network.Decoder;
 import it.ftb.sftp.network.Encoder;
+import it.ftb.sftp.network.MalformedPacketException;
 import it.ftb.sftp.network.StringWithLength;
 
 import javax.annotation.Nonnull;
@@ -37,5 +39,26 @@ public class ExtensionPair {
         }
         String data = dec.readString().getString();
         return Optional.of(new ExtensionPair(name.get().getString(), data));
+    }
+
+    public static ImmutableList<ExtensionPair> readAll(@Nonnull Decoder dec) {
+        ImmutableList.Builder<ExtensionPair> extensions = new ImmutableList.Builder<>();
+        do {
+            Optional<ExtensionPair> ep = ExtensionPair.read(dec);
+            if (ep.isPresent()) {
+                extensions.add(ep.get());
+            } else {
+                break;
+            }
+        } while (true);
+        return extensions.build();
+    }
+
+    public static ImmutableList<ExtensionPair> readAll(@Nonnull Decoder dec, int count) {
+        ImmutableList.Builder<ExtensionPair> extensions = new ImmutableList.Builder<>();
+        for (int i = 0; i < count; i++) {
+            extensions.add(ExtensionPair.read(dec).orElseThrow(() -> new MalformedPacketException("Could not find specified extensions")));
+        }
+        return extensions.build();
     }
 }

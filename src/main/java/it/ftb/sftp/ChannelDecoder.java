@@ -110,16 +110,22 @@ final class ChannelDecoder implements Decoder {
 
     private ByteBuffer readBytes(int len) {
         gather(len, false);
-        if (buffer.remaining() >= len) {
+        if (buffer.remaining() == len) {
             return buffer;
+        } else if (buffer.remaining() > len) {
+            ByteBuffer ret = buffer.duplicate();
+            ret.limit(ret.position() + len);
+            buffer.position(ret.limit());
+            return ret;
+        } else {
+            ByteBuffer tmp = ByteBuffer.allocate(len);
+            do {
+                tmp.put(buffer);
+                gather(tmp.remaining(), false);
+            } while (tmp.hasRemaining());
+            tmp.flip();
+            return tmp;
         }
-        ByteBuffer tmp = ByteBuffer.allocate(len);
-        do {
-            tmp.put(buffer);
-            gather(tmp.remaining(), false);
-        } while (tmp.hasRemaining());
-        tmp.flip();
-        return tmp;
     }
 
     @Override

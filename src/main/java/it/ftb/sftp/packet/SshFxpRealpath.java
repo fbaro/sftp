@@ -6,7 +6,6 @@ import it.ftb.sftp.network.Decoder;
 import it.ftb.sftp.network.Encoder;
 import it.ftb.sftp.network.StringWithLength;
 
-import javax.naming.ldap.Control;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -15,9 +14,9 @@ import java.util.stream.Collectors;
 public class SshFxpRealpath extends RequestPacket {
 
     public enum ControlByte {
-        SSH_FXP_REALPATH_NO_CHECK(0),
-        SSH_FXP_REALPATH_STAT_IF(1),
-        SSH_FXP_REALPATH_STAT_ALWAYS(2);
+        SSH_FXP_REALPATH_NO_CHECK(1),
+        SSH_FXP_REALPATH_STAT_IF(2),
+        SSH_FXP_REALPATH_STAT_ALWAYS(3);
 
         private final int code;
 
@@ -29,7 +28,11 @@ public class SshFxpRealpath extends RequestPacket {
             return code;
         }
         public static ControlByte fromCode(int code) {
-            return TYPES_BY_CODE.get(code);
+            ControlByte ret = TYPES_BY_CODE.get(code);
+            if (ret == null) {
+                throw new IllegalArgumentException("Unknown code: " + code);
+            }
+            return ret;
         }
 
         private static final ImmutableMap<Integer, ControlByte> TYPES_BY_CODE =

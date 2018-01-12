@@ -2,6 +2,7 @@ package it.ftb.sftp;
 
 import it.ftb.sftp.network.Bytes;
 import it.ftb.sftp.network.Decoder;
+import it.ftb.sftp.network.MalformedPacketException;
 import it.ftb.sftp.network.StringWithLength;
 
 import java.util.Optional;
@@ -65,9 +66,12 @@ final class PacketDecoder implements Decoder {
         if (length == 0) {
             return Optional.empty();
         }
-        Optional<StringWithLength> ret = delegate.readOptString();
-        ret.ifPresent(s -> checkRemaining(s.getLength()));
-        return ret;
+        if (length < 4) {
+            throw new MalformedPacketException("Not enough bytes for a string");
+        }
+        StringWithLength ret = delegate.readString();
+        checkRemaining(4 + ret.getLength());
+        return Optional.of(ret);
     }
 
     @Override
@@ -81,7 +85,7 @@ final class PacketDecoder implements Decoder {
     @Override
     public StringWithLength readString() {
         StringWithLength ret = delegate.readString();
-        checkRemaining(ret.getLength());
+        checkRemaining(4 + ret.getLength());
         return ret;
     }
 

@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
@@ -118,6 +119,56 @@ public final class ClientHandler implements AutoCloseable {
         @Override
         public void visit(AbstractPacket packet, Void parameter) {
             log.debug("Received unexpected packet: {}", packet);
+        }
+
+        @Override
+        public void visit(SshFxpRealpath packet, Void parameter) {
+            Path path = fileSystem.getPath(packet.getOriginalPath());
+            for (String cp : packet.getComposePath()) {
+                path = path.resolve(cp);
+            }
+            path = path.normalize();
+            switch (packet.getControlByte()) {
+                case SSH_FXP_REALPATH_NO_CHECK:
+                    writer.send(new SshFxpName(packet.getuRequestId(),
+                            ImmutableList.of(path.toString()),
+                            ImmutableList.of(Attrs.EMPTY),
+                            Optional.of(true)));
+                    break;
+                case SSH_FXP_REALPATH_STAT_IF:
+                    try {
+                        path = path.toRealPath();
+                        Attrs attrs = Attrs.create(path);
+                        writer.send(new SshFxpName(packet.getuRequestId(),
+                                ImmutableList.of(path.toString()),
+                                ImmutableList.of(attrs),
+                                Optional.of(true)));
+                    } catch (IOException e) {
+                        writer.send(new SshFxpName(packet.getuRequestId(),
+                                ImmutableList.of(path.toString()),
+                                ImmutableList.of(Attrs.EMPTY),
+                                Optional.of(true)));
+                    }
+                    break;
+
+                case SSH_FXP_REALPATH_STAT_ALWAYS:
+                    try {
+                        path = path.toRealPath();
+                        Attrs attrs = Attrs.create(path);
+                        writer.send(new SshFxpName(packet.getuRequestId(),
+                                ImmutableList.of(path.toString()),
+                                ImmutableList.of(attrs),
+                                Optional.of(true)));
+                    } catch (IOException e) {
+                        writer.send(new SshFxpStatus(packet.getuRequestId(),
+                                ErrorCode.SSH_FX_NO_SUCH_FILE,
+                                e.getMessage(),
+                                "en"));
+                    }
+                    break;
+                default:
+                    throw new IllegalStateException("Unknown control byte " + packet.getControlByte());
+            }
         }
 
         @Override

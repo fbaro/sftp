@@ -11,7 +11,7 @@ public class SshFxpName extends ReplyPacket {
     private final ImmutableList<Attrs> attributes;
     private final Optional<Boolean> endOfList;
 
-    SshFxpName(int uRequestId, ImmutableList<String> names, ImmutableList<Attrs> attributes, Optional<Boolean> endOfList) {
+    public SshFxpName(int uRequestId, ImmutableList<String> names, ImmutableList<Attrs> attributes, Optional<Boolean> endOfList) {
         super(PacketType.SSH_FXP_NAME, uRequestId);
         this.names = names;
         this.attributes = attributes;

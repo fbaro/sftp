@@ -56,6 +56,10 @@ public interface PacketVisitor<P, R> {
         return visit((AbstractPacket) packet, parameter);
     }
 
+    default R visit(SshFxpFstat packet, P parameter) {
+        return visit((AbstractPacket) packet, parameter);
+    }
+
     default R visit(SshFxpRealpath packet, P parameter) {
         return visit((AbstractPacket) packet, parameter);
     }

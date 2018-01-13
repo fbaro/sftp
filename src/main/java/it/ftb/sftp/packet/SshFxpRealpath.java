@@ -1,5 +1,6 @@
 package it.ftb.sftp.packet;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import it.ftb.sftp.network.Decoder;
@@ -86,6 +87,16 @@ public class SshFxpRealpath extends RequestPacket {
     @Override
     public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
         visitor.visit(this, parameter);
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                .add("originalPath", originalPath)
+                .add("controlByte", controlByte)
+                .add("composePath", composePath)
+                .add("uRequestId", uRequestId)
+                .toString();
     }
 
     public static final PacketFactory<SshFxpRealpath> FACTORY = new PacketFactory<SshFxpRealpath>() {

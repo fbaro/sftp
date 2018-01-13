@@ -1,5 +1,6 @@
 package it.ftb.sftp.packet;
 
+import com.google.common.base.MoreObjects;
 import it.ftb.sftp.network.Bytes;
 import it.ftb.sftp.network.Decoder;
 import it.ftb.sftp.network.Encoder;
@@ -42,6 +43,15 @@ public class SshFxpData extends ReplyPacket {
     @Override
     public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
         visitor.visit(this, parameter);
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                .add("data", data)
+                .add("endOfFile", endOfFile)
+                .add("uRequestId", uRequestId)
+                .toString();
     }
 
     public static final PacketFactory<SshFxpData> FACTORY = new PacketFactory<SshFxpData>() {

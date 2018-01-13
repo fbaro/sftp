@@ -1,5 +1,6 @@
 package it.ftb.sftp.packet;
 
+import com.google.common.base.MoreObjects;
 import it.ftb.sftp.network.Decoder;
 import it.ftb.sftp.network.Encoder;
 
@@ -15,7 +16,6 @@ public class SshFxpStatus extends ReplyPacket {
         this.errorMessage = errorMessage;
         this.errorMessageLanguage = errorMessageLanguage;
     }
-
 
     @Override
     public void write(Encoder enc) {
@@ -33,6 +33,16 @@ public class SshFxpStatus extends ReplyPacket {
     @Override
     public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
         visitor.visit(this, parameter);
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                .add("errorCode", errorCode)
+                .add("errorMessage", errorMessage)
+                .add("errorMessageLanguage", errorMessageLanguage)
+                .add("uRequestId", uRequestId)
+                .toString();
     }
 
     public static final PacketFactory<SshFxpStatus> FACTORY = new PacketFactory<SshFxpStatus>() {

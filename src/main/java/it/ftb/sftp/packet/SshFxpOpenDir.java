@@ -1,27 +1,29 @@
 package it.ftb.sftp.packet;
 
 import com.google.common.base.MoreObjects;
-import it.ftb.sftp.network.Bytes;
 import it.ftb.sftp.network.Decoder;
 import it.ftb.sftp.network.Encoder;
 
-public class SshFxpClose extends RequestPacket {
+import java.util.Optional;
+import java.util.OptionalInt;
 
-    private final Bytes handle;
+public final class SshFxpOpenDir extends RequestPacket {
 
-    public SshFxpClose(int uRequestId, Bytes handle) {
-        super(PacketType.SSH_FXP_CLOSE, uRequestId);
-        this.handle = handle;
+    private final String path;
+
+    private SshFxpOpenDir(int uRequestId, String path) {
+        super(PacketType.SSH_FXP_OPENDIR, uRequestId);
+        this.path = path;
     }
 
-    public Bytes getHandle() {
-        return handle;
+    public String getPath() {
+        return path;
     }
 
     @Override
     public void write(Encoder enc) {
-        enc.write(uRequestId)
-                .write(handle);
+        enc.write(uRequestId);
+        enc.write(path);
     }
 
     @Override
@@ -37,17 +39,17 @@ public class SshFxpClose extends RequestPacket {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                .add("handle", handle)
+                .add("path", path)
                 .add("uRequestId", uRequestId)
                 .toString();
     }
 
-    public static final PacketFactory<SshFxpClose> FACTORY = new PacketFactory<SshFxpClose>() {
+    public static final PacketFactory<SshFxpOpenDir> FACTORY = new PacketFactory<SshFxpOpenDir>() {
         @Override
-        public SshFxpClose read(Decoder decoder) {
+        public SshFxpOpenDir read(Decoder decoder) {
             int requestId = decoder.readInt();
-            Bytes handle = decoder.readBytes();
-            return new SshFxpClose(requestId, handle);
+            String path = decoder.readString().getString();
+            return new SshFxpOpenDir(requestId, path);
         }
     };
 }

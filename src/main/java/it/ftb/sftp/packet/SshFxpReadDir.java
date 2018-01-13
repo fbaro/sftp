@@ -5,12 +5,12 @@ import it.ftb.sftp.network.Bytes;
 import it.ftb.sftp.network.Decoder;
 import it.ftb.sftp.network.Encoder;
 
-public class SshFxpClose extends RequestPacket {
+public final class SshFxpReadDir extends RequestPacket {
 
     private final Bytes handle;
 
-    public SshFxpClose(int uRequestId, Bytes handle) {
-        super(PacketType.SSH_FXP_CLOSE, uRequestId);
+    private SshFxpReadDir(int uRequestId, Bytes handle) {
+        super(PacketType.SSH_FXP_READDIR, uRequestId);
         this.handle = handle;
     }
 
@@ -20,8 +20,8 @@ public class SshFxpClose extends RequestPacket {
 
     @Override
     public void write(Encoder enc) {
-        enc.write(uRequestId)
-                .write(handle);
+        enc.write(uRequestId);
+        enc.write(handle);
     }
 
     @Override
@@ -42,12 +42,12 @@ public class SshFxpClose extends RequestPacket {
                 .toString();
     }
 
-    public static final PacketFactory<SshFxpClose> FACTORY = new PacketFactory<SshFxpClose>() {
+    public static final PacketFactory<SshFxpReadDir> FACTORY = new PacketFactory<SshFxpReadDir>() {
         @Override
-        public SshFxpClose read(Decoder decoder) {
+        public SshFxpReadDir read(Decoder decoder) {
             int requestId = decoder.readInt();
             Bytes handle = decoder.readBytes();
-            return new SshFxpClose(requestId, handle);
+            return new SshFxpReadDir(requestId, handle);
         }
     };
 }

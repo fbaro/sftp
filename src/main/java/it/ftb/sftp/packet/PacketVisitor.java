@@ -16,11 +16,19 @@ public interface PacketVisitor<P, R> {
         return visit((AbstractPacket) packet, parameter);
     }
 
+    default R visit(SshFxpOpenDir packet, P parameter) {
+        return visit((AbstractPacket) packet, parameter);
+    }
+
     default R visit(SshFxpHandle packet, P parameter) {
         return visit((AbstractPacket) packet, parameter);
     }
 
     default R visit(SshFxpClose packet, P parameter) {
+        return visit((AbstractPacket) packet, parameter);
+    }
+
+    default R visit(SshFxpReadDir packet, P parameter) {
         return visit((AbstractPacket) packet, parameter);
     }
 
@@ -40,7 +48,19 @@ public interface PacketVisitor<P, R> {
         return visit((AbstractPacket) packet, parameter);
     }
 
+    default R visit(SshFxpLstat packet, P parameter) {
+        return visit((AbstractPacket) packet, parameter);
+    }
+
+    default R visit(SshFxpStat packet, P parameter) {
+        return visit((AbstractPacket) packet, parameter);
+    }
+
     default R visit(SshFxpRealpath packet, P parameter) {
+        return visit((AbstractPacket) packet, parameter);
+    }
+
+    default R visit(SshFxpAttrs packet, P parameter) {
         return visit((AbstractPacket) packet, parameter);
     }
 }

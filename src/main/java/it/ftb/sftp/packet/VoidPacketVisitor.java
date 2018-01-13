@@ -16,11 +16,19 @@ public interface VoidPacketVisitor<P> {
         visit((AbstractPacket) packet, parameter);
     }
 
+    default void visit(SshFxpOpenDir packet, P parameter) {
+        visit((AbstractPacket) packet, parameter);
+    }
+
     default void visit(SshFxpHandle packet, P parameter) {
         visit((AbstractPacket) packet, parameter);
     }
 
     default void visit(SshFxpClose packet, P parameter) {
+        visit((AbstractPacket) packet, parameter);
+    }
+
+    default void visit(SshFxpReadDir packet, P parameter) {
         visit((AbstractPacket) packet, parameter);
     }
 
@@ -40,7 +48,19 @@ public interface VoidPacketVisitor<P> {
         visit((AbstractPacket) packet, parameter);
     }
 
+    default void visit(SshFxpLstat packet, P parameter) {
+        visit((AbstractPacket) packet, parameter);
+    }
+
+    default void visit(SshFxpStat packet, P parameter) {
+        visit((AbstractPacket) packet, parameter);
+    }
+
     default void visit(SshFxpRealpath packet, P parameter) {
+        visit((AbstractPacket) packet, parameter);
+    }
+
+    default void visit(SshFxpAttrs packet, P parameter) {
         visit((AbstractPacket) packet, parameter);
     }
 }

@@ -1,5 +1,6 @@
 package it.ftb.sftp.packet;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import it.ftb.sftp.network.Decoder;
 import it.ftb.sftp.network.Encoder;
@@ -60,5 +61,13 @@ public class ExtensionPair {
             extensions.add(ExtensionPair.read(dec).orElseThrow(() -> new MalformedPacketException("Could not find specified extensions")));
         }
         return extensions.build();
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                .add("extensionName", extensionName)
+                .add("extensionData", extensionData)
+                .toString();
     }
 }

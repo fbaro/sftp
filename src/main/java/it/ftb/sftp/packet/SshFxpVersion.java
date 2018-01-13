@@ -1,5 +1,6 @@
 package it.ftb.sftp.packet;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import it.ftb.sftp.network.Decoder;
 import it.ftb.sftp.network.Encoder;
@@ -39,6 +40,14 @@ public class SshFxpVersion extends AbstractPacket {
     @Override
     public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
         visitor.visit(this, parameter);
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                .add("uVersion", uVersion)
+                .add("extensions", extensions)
+                .toString();
     }
 
     public static final PacketFactory<SshFxpVersion> FACTORY = new PacketFactory<SshFxpVersion>() {

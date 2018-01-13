@@ -8,16 +8,16 @@ import it.ftb.sftp.packet.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
-import java.nio.file.FileSystem;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.*;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -61,7 +61,8 @@ public final class ClientHandler implements AutoCloseable {
     private final class Reader extends Thread implements VoidPacketVisitor<Void> {
 
         private final ChannelDecoder decoder = new ChannelDecoder(clientChannel);
-        private final Map<Integer, SeekableByteChannel> openFiles = new HashMap<>();
+        private final Map<Integer, SeekableByteChannel> openFiles = new HashMap<>();            // TODO: Limitare il numero di entries
+        private final Map<Integer, DirectoryData<Path>> openDirectories = new HashMap<>();      // TODO: Limitare il numero di entries
         private int handlesCount = 0;
 
         @Override
@@ -84,7 +85,16 @@ public final class ClientHandler implements AutoCloseable {
                 // TODO: Version negotiation
                 writer.send(new SshFxpVersion(6, ImmutableList.of()));
                 while (true) {
-                    nextRequest().visit(null, this);
+                    AbstractPacket packet = nextRequest();
+                    log.debug("Received: {}", packet);
+                    try {
+                        packet.visit(null, this);
+                    } catch (RuntimeException ex) {
+                        if (packet instanceof RequestPacket) {
+                            writer.send(new SshFxpStatus(((RequestPacket) packet).getuRequestId(), ErrorCode.SSH_FX_FAILURE,
+                                    ex.getMessage(), "en"));
+                        }
+                    }
                 }
             } catch (IOException | RuntimeIOException e) {
                 log.debug("I/O exception", e);
@@ -122,10 +132,33 @@ public final class ClientHandler implements AutoCloseable {
         }
 
         @Override
+        public void visit(SshFxpLstat packet, Void parameter) {
+            Path path = fileSystem.getPath(packet.getPath());
+            try {
+                Attrs attrs = Attrs.create(path, packet.getuFlags(), LinkOption.NOFOLLOW_LINKS);
+                writer.send(new SshFxpAttrs(packet.getuRequestId(), attrs));
+            } catch (IOException e) {
+                writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_FAILURE, e.getMessage(), "en"));
+            }
+        }
+
+        @Override
+        public void visit(SshFxpStat packet, Void parameter) {
+            Path path = fileSystem.getPath(packet.getPath());
+            try {
+                Attrs attrs = Attrs.create(path, packet.getuFlags());
+                writer.send(new SshFxpAttrs(packet.getuRequestId(), attrs));
+            } catch (IOException e) {
+                writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_FAILURE, e.getMessage(), "en"));
+            }
+        }
+
+        @Override
         public void visit(SshFxpRealpath packet, Void parameter) {
             Path path = fileSystem.getPath(packet.getOriginalPath());
             for (String cp : packet.getComposePath()) {
-                path = path.resolve(cp);
+                Path pComponent = fileSystem.getPath(cp);
+                path = pComponent.isAbsolute() ? pComponent : path.resolve(pComponent);
             }
             path = path.normalize();
             switch (packet.getControlByte()) {
@@ -172,6 +205,48 @@ public final class ClientHandler implements AutoCloseable {
         }
 
         @Override
+        public void visit(SshFxpOpenDir packet, Void parameter) {
+            Path path = fileSystem.getPath(packet.getPath());
+            if (Files.exists(path) && !Files.isDirectory(path)) {
+                writer.send(new SshFxpStatus(packet.getuRequestId(),
+                        ErrorCode.SSH_FX_NOT_A_DIRECTORY,
+                        null, null));
+            } else {
+                try {
+                    DirectoryStream<Path> dirStream = Files.newDirectoryStream(path);
+                    int handle = ++handlesCount;
+                    openDirectories.put(handle, new DirectoryData<>(dirStream));
+                    writer.send(new SshFxpHandle(packet.getuRequestId(), Bytes.from(handle)));
+                } catch (FileNotFoundException e) {
+                    writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_NO_SUCH_FILE, "File not found", "en"));
+                } catch (IOException e) {
+                    writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_FAILURE, e.getMessage(), "en"));
+                }
+            }
+        }
+
+        @Override
+        public void visit(SshFxpReadDir packet, Void parameter) {
+            DirectoryData<Path> dirStream = openDirectories.get(packet.getHandle().asInt());
+            if (dirStream == null) {
+                writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_INVALID_HANDLE, "Handle not found", "en"));
+            } else {
+                ImmutableList.Builder<String> names = new ImmutableList.Builder<>();
+                ImmutableList.Builder<Attrs> attributes = new ImmutableList.Builder<>();
+                for (int i = 0; i < 16 && dirStream.iterator.hasNext(); i++) {
+                    Path path = dirStream.iterator.next();
+                    names.add(path.getFileName().toString());
+                    try {
+                        attributes.add(Attrs.create(path));
+                    } catch (IOException e) {
+                        attributes.add(Attrs.EMPTY);
+                    }
+                }
+                writer.send(new SshFxpName(packet.getuRequestId(), names.build(), attributes.build(), !dirStream.iterator.hasNext()));
+            }
+        }
+
+        @Override
         public void visit(SshFxpOpen packet, Void parameter) {
             Path fsPath = fileSystem.getPath(packet.getFilename());
             try {
@@ -188,22 +263,26 @@ public final class ClientHandler implements AutoCloseable {
 
         @Override
         public void visit(SshFxpClose packet, Void parameter) {
-            SeekableByteChannel channel = openFiles.remove(packet.getHandle().asInt());
-            if (channel == null) {
-                writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_INVALID_HANDLE, "Handle not found", "en"));
-                return;
+            int handle = packet.getHandle().asInt();
+            Closeable closeable = openFiles.remove(handle);
+            if (closeable == null) {
+                closeable = openDirectories.remove(handle);
             }
-            try {
-                channel.close();
-                writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_OK, "", ""));
-            } catch (IOException e) {
-                writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_FAILURE, e.getMessage(), "en"));
+            if (closeable == null) {
+                writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_INVALID_HANDLE, "Handle not found", "en"));
+            } else {
+                try {
+                    closeable.close();
+                    writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_OK, "", ""));
+                } catch (IOException e) {
+                    writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_FAILURE, e.getMessage(), "en"));
+                }
             }
         }
 
         @Override
         public void visit(SshFxpRead packet, Void parameter) {
-            SeekableByteChannel channel = openFiles.remove(packet.getHandle().asInt());
+            SeekableByteChannel channel = openFiles.get(packet.getHandle().asInt());
             if (channel == null) {
                 writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_INVALID_HANDLE, "Handle not found", "en"));
                 return;
@@ -237,6 +316,7 @@ public final class ClientHandler implements AutoCloseable {
                 AbstractPacket packet;
                 while (POISON != (packet = toWrite.take())) {
                     encoder.write(packet);
+                    log.debug("Sent: {}", packet);
                 }
             } catch (RuntimeIOException ex) {
                 log.debug("Error writing to client", ex);
@@ -256,4 +336,20 @@ public final class ClientHandler implements AutoCloseable {
             }
         }
     }
+
+    private static final class DirectoryData<T> implements Closeable {
+        public final DirectoryStream<T> stream;
+        public final Iterator<T> iterator;
+
+        public DirectoryData(DirectoryStream<T> stream) {
+            this.stream = stream;
+            this.iterator = stream.iterator();
+        }
+
+        @Override
+        public void close() throws IOException {
+            stream.close();
+        }
+    }
 }
+

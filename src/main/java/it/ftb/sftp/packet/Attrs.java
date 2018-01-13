@@ -1,5 +1,6 @@
 package it.ftb.sftp.packet;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import it.ftb.sftp.network.Decoder;
@@ -398,6 +399,35 @@ public class Attrs implements BasicFileAttributes {
         when(Validity.SSH_FILEXFER_ATTR_EXTENDED, () -> extensions.forEach(ep -> ep.write(enc)));
     }
 
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                .add("validAttributeFlags", validAttributeFlags)
+                .add("type", type)
+                .add("size", size)
+                .add("allocationSize", allocationSize)
+                .add("owner", owner)
+                .add("group", group)
+                .add("permissions", permissions)
+                .add("atime", atime)
+                .add("atimeNseconds", atimeNseconds)
+                .add("createtime", createtime)
+                .add("createtimeNseconds", createtimeNseconds)
+                .add("mtime", mtime)
+                .add("mtimeNseconds", mtimeNseconds)
+                .add("ctime", ctime)
+                .add("ctimeNseconds", ctimeNseconds)
+                .add("acl", acl)
+                .add("attribBits", attribBits)
+                .add("attribBitsValid", attribBitsValid)
+                .add("textHint", textHint)
+                .add("mimeType", mimeType)
+                .add("linkCount", linkCount)
+                .add("untranslatedName", untranslatedName)
+                .add("extensions", extensions)
+                .toString();
+    }
+
     public static Attrs read(@Nonnull Decoder dec) {
         return read(dec, dec.readInt());
     }
@@ -461,8 +491,12 @@ public class Attrs implements BasicFileAttributes {
     }
 
     public static Attrs create(Path path) throws IOException {
+        return create(path, 0xffffffff);
+    }
+
+    public static Attrs create(Path path, int uInterestedInFlags, LinkOption... linkOptions) throws IOException {
         try {
-            return Files.readAttributes(path, Attrs.class);
+            return Files.readAttributes(path, Attrs.class, linkOptions);
         } catch (UnsupportedOperationException ignored) {
             // I gave it a try, never mind
         }
@@ -473,7 +507,7 @@ public class Attrs implements BasicFileAttributes {
             type = Type.SSH_FILEXFER_TYPE_SYMLINK;
             attributes = Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
         } else {
-            attributes = Files.readAttributes(path, BasicFileAttributes.class);
+            attributes = Files.readAttributes(path, BasicFileAttributes.class, linkOptions);
             if (attributes.isDirectory()) {
                 type = Type.SSH_FILEXFER_TYPE_DIRECTORY;
             } else if (attributes.isRegularFile()) {
@@ -491,24 +525,29 @@ public class Attrs implements BasicFileAttributes {
         setTime(attributes.lastModifiedTime(), builder::withMtime);
         setTime(attributes.lastAccessTime(), builder::withAtime);
         builder.withAttribute(Attribute.SSH_FILEXFER_ATTR_FLAGS_HIDDEN, Files.isHidden(path));
-        try {
-            PosixFileAttributes pfa = Files.readAttributes(path, PosixFileAttributes.class);
-            builder.withOwnerGroup(pfa.owner().getName(), pfa.group().getName());
-            int permissions = 0;
-            for (PosixFilePermission p : pfa.permissions()) {
-                permissions |= POSIX_FILE_PERMISSION_MASK.get(p);
+        if (Validity.SSH_FILEXFER_ATTR_OWNERGROUP.isSet(uInterestedInFlags)
+                || Validity.SSH_FILEXFER_ATTR_PERMISSIONS.isSet(uInterestedInFlags)) {
+            try {
+                PosixFileAttributes pfa = Files.readAttributes(path, PosixFileAttributes.class, linkOptions);
+                builder.withOwnerGroup(pfa.owner().getName(), pfa.group().getName());
+                int permissions = 0;
+                for (PosixFilePermission p : pfa.permissions()) {
+                    permissions |= POSIX_FILE_PERMISSION_MASK.get(p);
+                }
+                builder.withPermissions(permissions);
+            } catch (UnsupportedOperationException ignored) {
+                // Launched by Files.readAttributes, never mind
             }
-            builder.withPermissions(permissions);
-        } catch (UnsupportedOperationException ignored) {
-            // Launched by Files.readAttributes, never mind
         }
-        try {
-            DosFileAttributes dfa = Files.readAttributes(path, DosFileAttributes.class);
-            builder.withAttribute(Attribute.SSH_FILEXFER_ATTR_FLAGS_ARCHIVE, dfa.isArchive());
-            builder.withAttribute(Attribute.SSH_FILEXFER_ATTR_FLAGS_READONLY, dfa.isReadOnly());
-            builder.withAttribute(Attribute.SSH_FILEXFER_ATTR_FLAGS_SYSTEM, dfa.isSystem());
-        } catch (UnsupportedOperationException ignored) {
-            // Launched by Files.readAttributes, never mind
+        if (Validity.SSH_FILEXFER_ATTR_BITS.isSet(uInterestedInFlags)) {
+            try {
+                DosFileAttributes dfa = Files.readAttributes(path, DosFileAttributes.class, linkOptions);
+                builder.withAttribute(Attribute.SSH_FILEXFER_ATTR_FLAGS_ARCHIVE, dfa.isArchive());
+                builder.withAttribute(Attribute.SSH_FILEXFER_ATTR_FLAGS_READONLY, dfa.isReadOnly());
+                builder.withAttribute(Attribute.SSH_FILEXFER_ATTR_FLAGS_SYSTEM, dfa.isSystem());
+            } catch (UnsupportedOperationException ignored) {
+                // Launched by Files.readAttributes, never mind
+            }
         }
         return builder.build();
     }

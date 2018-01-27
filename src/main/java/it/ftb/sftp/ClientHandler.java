@@ -28,7 +28,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.BiConsumer;
 
-public final class ClientHandler implements AutoCloseable {
+public final class ClientHandler<P extends SftpPath<P>> implements AutoCloseable {
 
     @SuppressWarnings("OctalInteger")
     private static final Map<PosixFilePermission, Integer> POSIX_FILE_PERMISSION_MASK =
@@ -45,20 +45,20 @@ public final class ClientHandler implements AutoCloseable {
                     .build();
     private final Logger log = LoggerFactory.getLogger(ClientHandler.class);
     private final ByteChannel clientChannel;
-    private final SftpFileSystem fileSystem;
+    private final SftpFileSystem<P> fileSystem;
     private Reader reader;
     private Writer writer;
 
-    private ClientHandler(ByteChannel clientChannel, SftpFileSystem fileSystem) {
+    private ClientHandler(ByteChannel clientChannel, SftpFileSystem<P> fileSystem) {
         this.clientChannel = clientChannel;
         this.fileSystem = fileSystem;
     }
 
-    private Attrs createAttrs(SftpPath path) throws IOException {
+    private Attrs createAttrs(P path) throws IOException {
         return createAttrs(path, 0xffffffff);
     }
 
-    private Attrs createAttrs(SftpPath path, int uInterestedInFlags, LinkOption... linkOptions) throws IOException {
+    private Attrs createAttrs(P path, int uInterestedInFlags, LinkOption... linkOptions) throws IOException {
         try {
             return fileSystem.readAttributes(path, Attrs.class, linkOptions);
         } catch (UnsupportedOperationException ignored) {
@@ -131,8 +131,8 @@ public final class ClientHandler implements AutoCloseable {
         writer.start();
     }
 
-    public static ClientHandler start(ByteChannel clientChannel, SftpFileSystem fileSystem) {
-        ClientHandler ret = new ClientHandler(clientChannel, fileSystem);
+    public static <P extends SftpPath<P>> ClientHandler start(ByteChannel clientChannel, SftpFileSystem<P> fileSystem) {
+        ClientHandler ret = new ClientHandler<>(clientChannel, fileSystem);
         ret.start();
         return ret;
     }
@@ -149,8 +149,8 @@ public final class ClientHandler implements AutoCloseable {
     private final class Reader extends Thread implements VoidPacketVisitor<Void> {
 
         private final ChannelDecoder decoder = new ChannelDecoder(clientChannel);
-        private final Map<Integer, FileData> openFiles = new HashMap<>();               // TODO: Limitare il numero di entries
-        private final Map<Integer, DirectoryData> openDirectories = new HashMap<>();    // TODO: Limitare il numero di entries
+        private final Map<Integer, FileData<P>> openFiles = new HashMap<>();               // TODO: Limitare il numero di entries
+        private final Map<Integer, DirectoryData<P>> openDirectories = new HashMap<>();    // TODO: Limitare il numero di entries
         private int handlesCount = 0;
 
         @Override
@@ -221,7 +221,7 @@ public final class ClientHandler implements AutoCloseable {
 
         @Override
         public void visit(SshFxpLstat packet, Void parameter) {
-            SftpPath path = fileSystem.getPath(packet.getPath());
+            P path = fileSystem.getPath(packet.getPath());
             try {
                 Attrs attrs = createAttrs(path, packet.getuFlags(), LinkOption.NOFOLLOW_LINKS);
                 writer.send(new SshFxpAttrs(packet.getuRequestId(), attrs));
@@ -232,7 +232,7 @@ public final class ClientHandler implements AutoCloseable {
 
         @Override
         public void visit(SshFxpStat packet, Void parameter) {
-            SftpPath path = fileSystem.getPath(packet.getPath());
+            P path = fileSystem.getPath(packet.getPath());
             try {
                 Attrs attrs = createAttrs(path, packet.getuFlags());
                 writer.send(new SshFxpAttrs(packet.getuRequestId(), attrs));
@@ -244,7 +244,7 @@ public final class ClientHandler implements AutoCloseable {
         @Override
         public void visit(SshFxpFstat packet, Void parameter) {
             int handle = packet.getHandle().asInt();
-            SftpPath path;
+            P path;
             if (openFiles.containsKey(handle)) {
                 path = openFiles.get(handle).path;
             } else if (openDirectories.containsKey(handle)) {
@@ -263,9 +263,9 @@ public final class ClientHandler implements AutoCloseable {
 
         @Override
         public void visit(SshFxpRealpath packet, Void parameter) {
-            SftpPath path = fileSystem.getPath(packet.getOriginalPath());
+            P path = fileSystem.getPath(packet.getOriginalPath());
             for (String cp : packet.getComposePath()) {
-                SftpPath pComponent = fileSystem.getPath(cp);
+                P pComponent = fileSystem.getPath(cp);
                 path = pComponent.isAbsolute() ? pComponent : path.resolve(pComponent);
             }
             path = path.normalize();
@@ -314,16 +314,16 @@ public final class ClientHandler implements AutoCloseable {
 
         @Override
         public void visit(SshFxpOpenDir packet, Void parameter) {
-            SftpPath path = fileSystem.getPath(packet.getPath());
+            P path = fileSystem.getPath(packet.getPath());
             if (fileSystem.exists(path) && !fileSystem.isDirectory(path)) {
                 writer.send(new SshFxpStatus(packet.getuRequestId(),
                         ErrorCode.SSH_FX_NOT_A_DIRECTORY,
                         null, null));
             } else {
                 try {
-                    DirectoryStream<SftpPath> dirStream = fileSystem.newDirectoryStream(path);
+                    DirectoryStream<P> dirStream = fileSystem.newDirectoryStream(path);
                     int handle = ++handlesCount;
-                    openDirectories.put(handle, new DirectoryData(path, dirStream));
+                    openDirectories.put(handle, new DirectoryData<>(path, dirStream));
                     writer.send(new SshFxpHandle(packet.getuRequestId(), Bytes.from(handle)));
                 } catch (FileNotFoundException e) {
                     writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_NO_SUCH_FILE, "File not found", "en"));
@@ -335,14 +335,14 @@ public final class ClientHandler implements AutoCloseable {
 
         @Override
         public void visit(SshFxpReadDir packet, Void parameter) {
-            DirectoryData dirStream = openDirectories.get(packet.getHandle().asInt());
+            DirectoryData<P> dirStream = openDirectories.get(packet.getHandle().asInt());
             if (dirStream == null) {
                 writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_INVALID_HANDLE, "Handle not found", "en"));
             } else {
                 ImmutableList.Builder<String> names = new ImmutableList.Builder<>();
                 ImmutableList.Builder<Attrs> attributes = new ImmutableList.Builder<>();
                 for (int i = 0; i < 16 && dirStream.iterator.hasNext(); i++) {
-                    SftpPath path = dirStream.iterator.next();
+                    P path = dirStream.iterator.next();
                     names.add(path.getFileName());
                     try {
                         attributes.add(createAttrs(path));
@@ -356,11 +356,11 @@ public final class ClientHandler implements AutoCloseable {
 
         @Override
         public void visit(SshFxpOpen packet, Void parameter) {
-            SftpPath fsPath = fileSystem.getPath(packet.getFilename());
+            P fsPath = fileSystem.getPath(packet.getFilename());
             try {
                 SeekableByteChannel fileChannel = fileSystem.newByteChannel(fsPath, ImmutableSet.of(StandardOpenOption.READ));
                 int handle = ++handlesCount;
-                openFiles.put(handle, new FileData(fileChannel, fsPath));
+                openFiles.put(handle, new FileData<>(fileChannel, fsPath));
                 writer.send(new SshFxpHandle(packet.getuRequestId(), Bytes.from(handle)));
             } catch (FileNotFoundException e) {
                 writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_NO_SUCH_FILE, "File not found", "en"));
@@ -445,12 +445,12 @@ public final class ClientHandler implements AutoCloseable {
         }
     }
 
-    private static final class DirectoryData implements Closeable {
-        public final DirectoryStream<SftpPath> stream;
-        public final Iterator<SftpPath> iterator;
-        public final SftpPath path;
+    private static final class DirectoryData<P> implements Closeable {
+        public final DirectoryStream<P> stream;
+        public final Iterator<P> iterator;
+        public final P path;
 
-        public DirectoryData(SftpPath path, DirectoryStream<SftpPath> stream) {
+        public DirectoryData(P path, DirectoryStream<P> stream) {
             this.path = path;
             this.stream = stream;
             this.iterator = stream.iterator();
@@ -462,11 +462,11 @@ public final class ClientHandler implements AutoCloseable {
         }
     }
 
-    private static final class FileData implements Closeable {
+    private static final class FileData<P extends SftpPath> implements Closeable {
         public final SeekableByteChannel channel;
-        public final SftpPath path;
+        public final P path;
 
-        public FileData(SeekableByteChannel channel, SftpPath path) {
+        public FileData(SeekableByteChannel channel, P path) {
             this.channel = channel;
             this.path = path;
         }

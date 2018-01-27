@@ -100,7 +100,7 @@ public class Server {
                     try (WritableByteChannel ignored = out; ReadableByteChannel ignored2 = in) {
                     }
                 }
-            }, SftpFileSystems.wrap(FileSystems.getDefault()));
+            }, SftpFileSystems.rooted(FileSystems.getDefault().getPath(".")));
         }
 
         @Override

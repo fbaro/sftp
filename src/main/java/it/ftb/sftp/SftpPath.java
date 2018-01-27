@@ -1,18 +1,18 @@
 package it.ftb.sftp;
 
 import java.io.IOException;
+import java.nio.file.LinkOption;
 
-public interface SftpPath {
+public interface SftpPath<P extends SftpPath<P>> {
     boolean isAbsolute();
 
-    SftpPath resolve(SftpPath other);
+    P resolve(P other);
 
-    SftpPath normalize();
+    P normalize();
 
-    SftpPath toRealPath() throws IOException;
+    P toRealPath(LinkOption... options) throws IOException;
+
+    P getParent() throws IOException;
 
     String getFileName();
-
-    String toString();
 }
-

@@ -9,21 +9,24 @@ import java.nio.file.LinkOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 
-public interface SftpFileSystem {
-    SftpPath getPath(String path);
+public interface SftpFileSystem<P> {
+
+    Iterable<? extends P> getRootDirectories();
+
+    P getPath(String path);
 
     <A extends BasicFileAttributes> A readAttributes(
-            SftpPath path, Class<A> type, LinkOption... options) throws IOException;
+            P path, Class<A> type, LinkOption... options) throws IOException;
 
-    boolean isSymbolicLink(SftpPath path);
+    boolean isSymbolicLink(P path);
 
-    boolean isHidden(SftpPath path) throws IOException;
+    boolean isHidden(P path) throws IOException;
 
-    boolean isDirectory(SftpPath path);
+    boolean isDirectory(P path);
 
-    boolean exists(SftpPath path);
+    boolean exists(P path);
 
-    DirectoryStream<SftpPath> newDirectoryStream(SftpPath path) throws IOException;
+    DirectoryStream<P> newDirectoryStream(P path) throws IOException;
 
-    SeekableByteChannel newByteChannel(SftpPath path, ImmutableSet<StandardOpenOption> options) throws IOException;
+    SeekableByteChannel newByteChannel(P path, ImmutableSet<StandardOpenOption> options) throws IOException;
 }

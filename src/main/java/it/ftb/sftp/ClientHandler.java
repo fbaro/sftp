@@ -1,6 +1,7 @@
 package it.ftb.sftp;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.UnsignedInts;
 import it.ftb.sftp.network.Bytes;
@@ -15,25 +16,112 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
-import java.nio.file.*;
+import java.nio.file.DirectoryStream;
+import java.nio.file.LinkOption;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.*;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.function.BiConsumer;
 
 public final class ClientHandler implements AutoCloseable {
 
+    @SuppressWarnings("OctalInteger")
+    private static final Map<PosixFilePermission, Integer> POSIX_FILE_PERMISSION_MASK =
+            ImmutableMap.<PosixFilePermission, Integer>builder()
+                    .put(PosixFilePermission.OWNER_READ, 0000400)
+                    .put(PosixFilePermission.OWNER_WRITE, 0000200)
+                    .put(PosixFilePermission.OWNER_EXECUTE, 0000100)
+                    .put(PosixFilePermission.GROUP_READ, 0000040)
+                    .put(PosixFilePermission.GROUP_WRITE, 0000020)
+                    .put(PosixFilePermission.GROUP_EXECUTE, 0000010)
+                    .put(PosixFilePermission.OTHERS_READ, 0000004)
+                    .put(PosixFilePermission.OTHERS_WRITE, 0000002)
+                    .put(PosixFilePermission.OTHERS_EXECUTE, 0000001)
+                    .build();
     private final Logger log = LoggerFactory.getLogger(ClientHandler.class);
     private final ByteChannel clientChannel;
-    private final FileSystem fileSystem;
+    private final SftpFileSystem fileSystem;
     private Reader reader;
     private Writer writer;
 
-    private ClientHandler(ByteChannel clientChannel, FileSystem fileSystem) {
+    private ClientHandler(ByteChannel clientChannel, SftpFileSystem fileSystem) {
         this.clientChannel = clientChannel;
         this.fileSystem = fileSystem;
+    }
+
+    private Attrs createAttrs(SftpPath path) throws IOException {
+        return createAttrs(path, 0xffffffff);
+    }
+
+    private Attrs createAttrs(SftpPath path, int uInterestedInFlags, LinkOption... linkOptions) throws IOException {
+        try {
+            return fileSystem.readAttributes(path, Attrs.class, linkOptions);
+        } catch (UnsupportedOperationException ignored) {
+            // I gave it a try, never mind
+        }
+
+        Attrs.Type type;
+        BasicFileAttributes attributes;
+        if (fileSystem.isSymbolicLink(path)) {
+            type = Attrs.Type.SSH_FILEXFER_TYPE_SYMLINK;
+            attributes = fileSystem.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        } else {
+            attributes = fileSystem.readAttributes(path, BasicFileAttributes.class, linkOptions);
+            if (attributes.isDirectory()) {
+                type = Attrs.Type.SSH_FILEXFER_TYPE_DIRECTORY;
+            } else if (attributes.isRegularFile()) {
+                type = Attrs.Type.SSH_FILEXFER_TYPE_REGULAR;
+            } else if (attributes.isOther()) {
+                type = Attrs.Type.SSH_FILEXFER_TYPE_SPECIAL;
+            } else {
+                type = Attrs.Type.SSH_FILEXFER_TYPE_UNKNOWN;
+            }
+        }
+        Attrs.Builder builder = new Attrs.Builder(type, true);
+        if (type == Attrs.Type.SSH_FILEXFER_TYPE_REGULAR) {
+            builder.withSize(attributes.size());
+        }
+        setTime(attributes.lastModifiedTime(), builder::withMtime);
+        setTime(attributes.lastAccessTime(), builder::withAtime);
+        builder.withAttribute(Attrs.Attribute.SSH_FILEXFER_ATTR_FLAGS_HIDDEN, fileSystem.isHidden(path));
+        if (Attrs.Validity.SSH_FILEXFER_ATTR_OWNERGROUP.isSet(uInterestedInFlags)
+                || Attrs.Validity.SSH_FILEXFER_ATTR_PERMISSIONS.isSet(uInterestedInFlags)) {
+            try {
+                PosixFileAttributes pfa = fileSystem.readAttributes(path, PosixFileAttributes.class, linkOptions);
+                builder.withOwnerGroup(pfa.owner().getName(), pfa.group().getName());
+                int permissions = 0;
+                for (PosixFilePermission p : pfa.permissions()) {
+                    permissions |= POSIX_FILE_PERMISSION_MASK.get(p);
+                }
+                builder.withPermissions(permissions);
+            } catch (UnsupportedOperationException ignored) {
+                // Launched by Files.readAttributes, never mind
+            }
+        }
+        if (Attrs.Validity.SSH_FILEXFER_ATTR_BITS.isSet(uInterestedInFlags)) {
+            try {
+                DosFileAttributes dfa = fileSystem.readAttributes(path, DosFileAttributes.class, linkOptions);
+                builder.withAttribute(Attrs.Attribute.SSH_FILEXFER_ATTR_FLAGS_ARCHIVE, dfa.isArchive());
+                builder.withAttribute(Attrs.Attribute.SSH_FILEXFER_ATTR_FLAGS_READONLY, dfa.isReadOnly());
+                builder.withAttribute(Attrs.Attribute.SSH_FILEXFER_ATTR_FLAGS_SYSTEM, dfa.isSystem());
+            } catch (UnsupportedOperationException ignored) {
+                // Launched by Files.readAttributes, never mind
+            }
+        }
+        return builder.build();
+    }
+
+    private static void setTime(FileTime fileTime, BiConsumer<Long, Integer> setter) {
+        long epochSec = fileTime.toInstant().getEpochSecond();
+        int epochNanosec = fileTime.toInstant().getNano();
+        if (epochSec != 0) {
+            setter.accept(epochSec, epochNanosec);
+        }
     }
 
     private void start() {
@@ -43,7 +131,7 @@ public final class ClientHandler implements AutoCloseable {
         writer.start();
     }
 
-    public static ClientHandler start(ByteChannel clientChannel, FileSystem fileSystem) {
+    public static ClientHandler start(ByteChannel clientChannel, SftpFileSystem fileSystem) {
         ClientHandler ret = new ClientHandler(clientChannel, fileSystem);
         ret.start();
         return ret;
@@ -133,9 +221,9 @@ public final class ClientHandler implements AutoCloseable {
 
         @Override
         public void visit(SshFxpLstat packet, Void parameter) {
-            Path path = fileSystem.getPath(packet.getPath());
+            SftpPath path = fileSystem.getPath(packet.getPath());
             try {
-                Attrs attrs = Attrs.create(path, packet.getuFlags(), LinkOption.NOFOLLOW_LINKS);
+                Attrs attrs = createAttrs(path, packet.getuFlags(), LinkOption.NOFOLLOW_LINKS);
                 writer.send(new SshFxpAttrs(packet.getuRequestId(), attrs));
             } catch (IOException e) {
                 writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_FAILURE, e.getMessage(), "en"));
@@ -144,9 +232,9 @@ public final class ClientHandler implements AutoCloseable {
 
         @Override
         public void visit(SshFxpStat packet, Void parameter) {
-            Path path = fileSystem.getPath(packet.getPath());
+            SftpPath path = fileSystem.getPath(packet.getPath());
             try {
-                Attrs attrs = Attrs.create(path, packet.getuFlags());
+                Attrs attrs = createAttrs(path, packet.getuFlags());
                 writer.send(new SshFxpAttrs(packet.getuRequestId(), attrs));
             } catch (IOException e) {
                 writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_FAILURE, e.getMessage(), "en"));
@@ -156,7 +244,7 @@ public final class ClientHandler implements AutoCloseable {
         @Override
         public void visit(SshFxpFstat packet, Void parameter) {
             int handle = packet.getHandle().asInt();
-            Path path;
+            SftpPath path;
             if (openFiles.containsKey(handle)) {
                 path = openFiles.get(handle).path;
             } else if (openDirectories.containsKey(handle)) {
@@ -166,7 +254,7 @@ public final class ClientHandler implements AutoCloseable {
                 return;
             }
             try {
-                Attrs attrs = Attrs.create(path, packet.getuFlags());
+                Attrs attrs = createAttrs(path, packet.getuFlags());
                 writer.send(new SshFxpAttrs(packet.getuRequestId(), attrs));
             } catch (IOException e) {
                 writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_FAILURE, e.getMessage(), "en"));
@@ -175,9 +263,9 @@ public final class ClientHandler implements AutoCloseable {
 
         @Override
         public void visit(SshFxpRealpath packet, Void parameter) {
-            Path path = fileSystem.getPath(packet.getOriginalPath());
+            SftpPath path = fileSystem.getPath(packet.getOriginalPath());
             for (String cp : packet.getComposePath()) {
-                Path pComponent = fileSystem.getPath(cp);
+                SftpPath pComponent = fileSystem.getPath(cp);
                 path = pComponent.isAbsolute() ? pComponent : path.resolve(pComponent);
             }
             path = path.normalize();
@@ -191,7 +279,7 @@ public final class ClientHandler implements AutoCloseable {
                 case SSH_FXP_REALPATH_STAT_IF:
                     try {
                         path = path.toRealPath();
-                        Attrs attrs = Attrs.create(path);
+                        Attrs attrs = createAttrs(path);
                         writer.send(new SshFxpName(packet.getuRequestId(),
                                 ImmutableList.of(path.toString()),
                                 ImmutableList.of(attrs),
@@ -207,7 +295,7 @@ public final class ClientHandler implements AutoCloseable {
                 case SSH_FXP_REALPATH_STAT_ALWAYS:
                     try {
                         path = path.toRealPath();
-                        Attrs attrs = Attrs.create(path);
+                        Attrs attrs = createAttrs(path);
                         writer.send(new SshFxpName(packet.getuRequestId(),
                                 ImmutableList.of(path.toString()),
                                 ImmutableList.of(attrs),
@@ -226,14 +314,14 @@ public final class ClientHandler implements AutoCloseable {
 
         @Override
         public void visit(SshFxpOpenDir packet, Void parameter) {
-            Path path = fileSystem.getPath(packet.getPath());
-            if (Files.exists(path) && !Files.isDirectory(path)) {
+            SftpPath path = fileSystem.getPath(packet.getPath());
+            if (fileSystem.exists(path) && !fileSystem.isDirectory(path)) {
                 writer.send(new SshFxpStatus(packet.getuRequestId(),
                         ErrorCode.SSH_FX_NOT_A_DIRECTORY,
                         null, null));
             } else {
                 try {
-                    DirectoryStream<Path> dirStream = Files.newDirectoryStream(path);
+                    DirectoryStream<SftpPath> dirStream = fileSystem.newDirectoryStream(path);
                     int handle = ++handlesCount;
                     openDirectories.put(handle, new DirectoryData(path, dirStream));
                     writer.send(new SshFxpHandle(packet.getuRequestId(), Bytes.from(handle)));
@@ -254,10 +342,10 @@ public final class ClientHandler implements AutoCloseable {
                 ImmutableList.Builder<String> names = new ImmutableList.Builder<>();
                 ImmutableList.Builder<Attrs> attributes = new ImmutableList.Builder<>();
                 for (int i = 0; i < 16 && dirStream.iterator.hasNext(); i++) {
-                    Path path = dirStream.iterator.next();
-                    names.add(path.getFileName().toString());
+                    SftpPath path = dirStream.iterator.next();
+                    names.add(path.getFileName());
                     try {
-                        attributes.add(Attrs.create(path));
+                        attributes.add(createAttrs(path));
                     } catch (IOException e) {
                         attributes.add(Attrs.EMPTY);
                     }
@@ -268,9 +356,9 @@ public final class ClientHandler implements AutoCloseable {
 
         @Override
         public void visit(SshFxpOpen packet, Void parameter) {
-            Path fsPath = fileSystem.getPath(packet.getFilename());
+            SftpPath fsPath = fileSystem.getPath(packet.getFilename());
             try {
-                SeekableByteChannel fileChannel = fileSystem.provider().newByteChannel(fsPath, ImmutableSet.of(StandardOpenOption.READ));
+                SeekableByteChannel fileChannel = fileSystem.newByteChannel(fsPath, ImmutableSet.of(StandardOpenOption.READ));
                 int handle = ++handlesCount;
                 openFiles.put(handle, new FileData(fileChannel, fsPath));
                 writer.send(new SshFxpHandle(packet.getuRequestId(), Bytes.from(handle)));
@@ -358,11 +446,11 @@ public final class ClientHandler implements AutoCloseable {
     }
 
     private static final class DirectoryData implements Closeable {
-        public final DirectoryStream<Path> stream;
-        public final Iterator<Path> iterator;
-        public final Path path;
+        public final DirectoryStream<SftpPath> stream;
+        public final Iterator<SftpPath> iterator;
+        public final SftpPath path;
 
-        public DirectoryData(Path path, DirectoryStream<Path> stream) {
+        public DirectoryData(SftpPath path, DirectoryStream<SftpPath> stream) {
             this.path = path;
             this.stream = stream;
             this.iterator = stream.iterator();
@@ -376,9 +464,9 @@ public final class ClientHandler implements AutoCloseable {
 
     private static final class FileData implements Closeable {
         public final SeekableByteChannel channel;
-        public final Path path;
+        public final SftpPath path;
 
-        public FileData(SeekableByteChannel channel, Path path) {
+        public FileData(SeekableByteChannel channel, SftpPath path) {
             this.channel = channel;
             this.path = path;
         }

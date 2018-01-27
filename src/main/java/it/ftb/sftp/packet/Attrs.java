@@ -21,21 +21,8 @@ import java.util.stream.Collectors;
 public class Attrs implements BasicFileAttributes {
 
     public static final Attrs EMPTY = new Builder(Type.SSH_FILEXFER_TYPE_UNKNOWN, false).build();
-    @SuppressWarnings("OctalInteger")
-    private static final Map<PosixFilePermission, Integer> POSIX_FILE_PERMISSION_MASK =
-            ImmutableMap.<PosixFilePermission, Integer>builder()
-                    .put(PosixFilePermission.OWNER_READ, 0000400)
-                    .put(PosixFilePermission.OWNER_WRITE, 0000200)
-                    .put(PosixFilePermission.OWNER_EXECUTE, 0000100)
-                    .put(PosixFilePermission.GROUP_READ, 0000040)
-                    .put(PosixFilePermission.GROUP_WRITE, 0000020)
-                    .put(PosixFilePermission.GROUP_EXECUTE, 0000010)
-                    .put(PosixFilePermission.OTHERS_READ, 0000004)
-                    .put(PosixFilePermission.OTHERS_WRITE, 0000002)
-                    .put(PosixFilePermission.OTHERS_EXECUTE, 0000001)
-                    .build();
 
-    private enum Validity {
+    public enum Validity {
         SSH_FILEXFER_ATTR_SIZE(0x00000001),
         SSH_FILEXFER_ATTR_PERMISSIONS(0x00000004),
         SSH_FILEXFER_ATTR_ACCESSTIME(0x00000008),
@@ -488,76 +475,6 @@ public class Attrs implements BasicFileAttributes {
             throw new IllegalStateException("validAttributeFlags mismatch");
         }
         return b.build();
-    }
-
-    public static Attrs create(Path path) throws IOException {
-        return create(path, 0xffffffff);
-    }
-
-    public static Attrs create(Path path, int uInterestedInFlags, LinkOption... linkOptions) throws IOException {
-        try {
-            return Files.readAttributes(path, Attrs.class, linkOptions);
-        } catch (UnsupportedOperationException ignored) {
-            // I gave it a try, never mind
-        }
-
-        Type type;
-        BasicFileAttributes attributes;
-        if (Files.isSymbolicLink(path)) {
-            type = Type.SSH_FILEXFER_TYPE_SYMLINK;
-            attributes = Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-        } else {
-            attributes = Files.readAttributes(path, BasicFileAttributes.class, linkOptions);
-            if (attributes.isDirectory()) {
-                type = Type.SSH_FILEXFER_TYPE_DIRECTORY;
-            } else if (attributes.isRegularFile()) {
-                type = Type.SSH_FILEXFER_TYPE_REGULAR;
-            } else if (attributes.isOther()) {
-                type = Type.SSH_FILEXFER_TYPE_SPECIAL;
-            } else {
-                type = Type.SSH_FILEXFER_TYPE_UNKNOWN;
-            }
-        }
-        Builder builder = new Builder(type, true);
-        if (type == Type.SSH_FILEXFER_TYPE_REGULAR) {
-            builder.withSize(attributes.size());
-        }
-        setTime(attributes.lastModifiedTime(), builder::withMtime);
-        setTime(attributes.lastAccessTime(), builder::withAtime);
-        builder.withAttribute(Attribute.SSH_FILEXFER_ATTR_FLAGS_HIDDEN, Files.isHidden(path));
-        if (Validity.SSH_FILEXFER_ATTR_OWNERGROUP.isSet(uInterestedInFlags)
-                || Validity.SSH_FILEXFER_ATTR_PERMISSIONS.isSet(uInterestedInFlags)) {
-            try {
-                PosixFileAttributes pfa = Files.readAttributes(path, PosixFileAttributes.class, linkOptions);
-                builder.withOwnerGroup(pfa.owner().getName(), pfa.group().getName());
-                int permissions = 0;
-                for (PosixFilePermission p : pfa.permissions()) {
-                    permissions |= POSIX_FILE_PERMISSION_MASK.get(p);
-                }
-                builder.withPermissions(permissions);
-            } catch (UnsupportedOperationException ignored) {
-                // Launched by Files.readAttributes, never mind
-            }
-        }
-        if (Validity.SSH_FILEXFER_ATTR_BITS.isSet(uInterestedInFlags)) {
-            try {
-                DosFileAttributes dfa = Files.readAttributes(path, DosFileAttributes.class, linkOptions);
-                builder.withAttribute(Attribute.SSH_FILEXFER_ATTR_FLAGS_ARCHIVE, dfa.isArchive());
-                builder.withAttribute(Attribute.SSH_FILEXFER_ATTR_FLAGS_READONLY, dfa.isReadOnly());
-                builder.withAttribute(Attribute.SSH_FILEXFER_ATTR_FLAGS_SYSTEM, dfa.isSystem());
-            } catch (UnsupportedOperationException ignored) {
-                // Launched by Files.readAttributes, never mind
-            }
-        }
-        return builder.build();
-    }
-
-    private static void setTime(FileTime fileTime, BiConsumer<Long, Integer> setter) {
-        long epochSec = fileTime.toInstant().getEpochSecond();
-        int epochNanosec = fileTime.toInstant().getNano();
-        if (epochSec != 0) {
-            setter.accept(epochSec, epochNanosec);
-        }
     }
 
     @SuppressWarnings("UnusedReturnValue")

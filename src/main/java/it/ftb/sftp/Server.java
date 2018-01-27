@@ -39,6 +39,7 @@ public class Server {
                 return "sftp";
             }
         }));
+//        sshd.setSubsystemFactories(ImmutableList.of(new SftpSubsystemFactory()));
         sshd.start();
         TimeUnit.MINUTES.sleep(10);
     }
@@ -99,7 +100,7 @@ public class Server {
                     try (WritableByteChannel ignored = out; ReadableByteChannel ignored2 = in) {
                     }
                 }
-            }, FileSystems.getDefault());
+            }, SftpFileSystems.wrap(FileSystems.getDefault()));
         }
 
         @Override

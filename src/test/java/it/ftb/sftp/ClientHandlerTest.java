@@ -43,7 +43,7 @@ public class ClientHandlerTest {
             }
         };
 
-        SftpFileSystem<SftpPath> fs = mock(SftpFileSystem.class);
+        SftpFileSystem<?> fs = mock(SftpFileSystem.class);
         try (ClientHandler<?> handler = ClientHandler.start(clientChannel, fs)) {
             PacketEncoder writeEncoder = new PacketEncoder(clientWritePipe.sink());
             ChannelDecoder readDecoder = new ChannelDecoder(clientReadPipe.source());

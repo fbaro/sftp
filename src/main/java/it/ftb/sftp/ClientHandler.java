@@ -178,6 +178,7 @@ public final class ClientHandler<P extends SftpPath<P>> implements AutoCloseable
                     try {
                         packet.visit(null, this);
                     } catch (RuntimeException ex) {
+                        log.error("Unexpected exception processing {}", packet, ex);
                         if (packet instanceof RequestPacket) {
                             writer.send(new SshFxpStatus(((RequestPacket) packet).getuRequestId(), ErrorCode.SSH_FX_FAILURE,
                                     ex.getMessage(), "en"));
@@ -221,7 +222,7 @@ public final class ClientHandler<P extends SftpPath<P>> implements AutoCloseable
 
         @Override
         public void visit(SshFxpLstat packet, Void parameter) {
-            P path = fileSystem.getPath(packet.getPath());
+            P path = SftpPath.parse(fileSystem, packet.getPath());
             try {
                 Attrs attrs = createAttrs(path, packet.getuFlags(), LinkOption.NOFOLLOW_LINKS);
                 writer.send(new SshFxpAttrs(packet.getuRequestId(), attrs));
@@ -232,7 +233,7 @@ public final class ClientHandler<P extends SftpPath<P>> implements AutoCloseable
 
         @Override
         public void visit(SshFxpStat packet, Void parameter) {
-            P path = fileSystem.getPath(packet.getPath());
+            P path = SftpPath.parse(fileSystem, packet.getPath());
             try {
                 Attrs attrs = createAttrs(path, packet.getuFlags());
                 writer.send(new SshFxpAttrs(packet.getuRequestId(), attrs));
@@ -263,16 +264,20 @@ public final class ClientHandler<P extends SftpPath<P>> implements AutoCloseable
 
         @Override
         public void visit(SshFxpRealpath packet, Void parameter) {
-            P path = fileSystem.getPath(packet.getOriginalPath());
+            P path = SftpPath.parse(fileSystem, packet.getOriginalPath());
             for (String cp : packet.getComposePath()) {
-                P pComponent = fileSystem.getPath(cp);
-                path = pComponent.isAbsolute() ? pComponent : path.resolve(pComponent);
+                P pComponent = SftpPath.parse(fileSystem, cp);
+                if (cp.charAt(0) == '/') {
+                    path = pComponent;
+                } else {
+                    path = path.resolve(pComponent);
+                }
             }
             path = path.normalize();
             switch (packet.getControlByte()) {
                 case SSH_FXP_REALPATH_NO_CHECK:
                     writer.send(new SshFxpName(packet.getuRequestId(),
-                            ImmutableList.of(path.toString()),
+                            ImmutableList.of(SftpPath.toString(fileSystem, path)),
                             ImmutableList.of(Attrs.EMPTY),
                             Optional.of(true)));
                     break;
@@ -281,12 +286,12 @@ public final class ClientHandler<P extends SftpPath<P>> implements AutoCloseable
                         path = path.toRealPath();
                         Attrs attrs = createAttrs(path);
                         writer.send(new SshFxpName(packet.getuRequestId(),
-                                ImmutableList.of(path.toString()),
+                                ImmutableList.of(SftpPath.toString(fileSystem, path)),
                                 ImmutableList.of(attrs),
                                 Optional.of(true)));
                     } catch (IOException e) {
                         writer.send(new SshFxpName(packet.getuRequestId(),
-                                ImmutableList.of(path.toString()),
+                                ImmutableList.of(SftpPath.toString(fileSystem, path)),
                                 ImmutableList.of(Attrs.EMPTY),
                                 Optional.of(true)));
                     }
@@ -297,7 +302,7 @@ public final class ClientHandler<P extends SftpPath<P>> implements AutoCloseable
                         path = path.toRealPath();
                         Attrs attrs = createAttrs(path);
                         writer.send(new SshFxpName(packet.getuRequestId(),
-                                ImmutableList.of(path.toString()),
+                                ImmutableList.of(SftpPath.toString(fileSystem, path)),
                                 ImmutableList.of(attrs),
                                 Optional.of(true)));
                     } catch (IOException e) {
@@ -314,7 +319,7 @@ public final class ClientHandler<P extends SftpPath<P>> implements AutoCloseable
 
         @Override
         public void visit(SshFxpOpenDir packet, Void parameter) {
-            P path = fileSystem.getPath(packet.getPath());
+            P path = SftpPath.parse(fileSystem, packet.getPath());
             if (fileSystem.exists(path) && !fileSystem.isDirectory(path)) {
                 writer.send(new SshFxpStatus(packet.getuRequestId(),
                         ErrorCode.SSH_FX_NOT_A_DIRECTORY,
@@ -356,7 +361,7 @@ public final class ClientHandler<P extends SftpPath<P>> implements AutoCloseable
 
         @Override
         public void visit(SshFxpOpen packet, Void parameter) {
-            P fsPath = fileSystem.getPath(packet.getFilename());
+            P fsPath = SftpPath.parse(fileSystem, packet.getFilename());
             try {
                 SeekableByteChannel fileChannel = fileSystem.newByteChannel(fsPath, ImmutableSet.of(StandardOpenOption.READ));
                 int handle = ++handlesCount;

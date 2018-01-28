@@ -109,6 +109,11 @@ public final class PacketEncoder {
 
         @Override
         public Encoder write(String s) {
+            if (s == null) {
+                ensureSpace(4);
+                buffer.putInt(0);
+                return this;
+            }
             CharsetEncoder encoder = StandardCharsets.UTF_8.newEncoder();
             ensureSpace(4 + (int) (s.length() * encoder.maxBytesPerChar()));
             int p = buffer.position();

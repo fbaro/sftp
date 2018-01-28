@@ -1,9 +1,9 @@
 package it.ftb.sftp;
 
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.*;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.*;
@@ -16,7 +16,7 @@ public final class SftpFileSystems {
     }
 
     public static SftpFileSystem<? extends SftpPath> rooted(Path root) {
-        return new RootedFileSystem(root.getFileSystem(), root.toAbsolutePath());
+        return new RootedFileSystem(root.getFileSystem(), root.toAbsolutePath().normalize());
     }
 
     public static abstract class AbstractSftpFileSystem<P extends AbstractSftpPath<P>> implements SftpFileSystem<P> {
@@ -28,17 +28,6 @@ public final class SftpFileSystems {
         }
 
         protected abstract P wrap(Path path);
-
-        @SuppressWarnings("StaticPseudoFunctionalStyleMethod")
-        @Override
-        public Iterable<P> getRootDirectories() {
-            return Iterables.transform(fs.getRootDirectories(), this::wrap);
-        }
-
-        @Override
-        public P getPath(String path) {
-            return wrap(fs.getPath(path));
-        }
 
         @Override
         public <A extends BasicFileAttributes> A readAttributes(P path, Class<A> type, LinkOption... options) throws IOException {
@@ -85,6 +74,15 @@ public final class SftpFileSystems {
         public SeekableByteChannel newByteChannel(P path, ImmutableSet<StandardOpenOption> options) throws IOException {
             return fs.provider().newByteChannel(path.path, options);
         }
+
+        @Override
+        public boolean isSameFile(P path1, P path2) {
+            try {
+                return Files.isSameFile(path1.path, path2.path);
+            } catch (IOException e) {
+                throw new IllegalStateException(e); // TODO, gestire meglio
+            }
+        }
     }
 
     public static abstract class AbstractSftpPath<P extends AbstractSftpPath<P>> implements SftpPath<P> {
@@ -93,6 +91,8 @@ public final class SftpFileSystems {
         protected final Path path;
 
         AbstractSftpPath(AbstractSftpFileSystem<P> fs, Path path) {
+            Preconditions.checkNotNull(fs);
+            Preconditions.checkNotNull(path);
             this.fs = fs;
             this.path = path;
         }
@@ -100,6 +100,11 @@ public final class SftpFileSystems {
         @Override
         public P resolve(P other) {
             return fs.wrap(path.resolve(other.path));
+        }
+
+        @Override
+        public P resolve(String other) {
+            return fs.wrap(path.resolve(other));
         }
 
         @Override
@@ -113,23 +118,23 @@ public final class SftpFileSystems {
         }
 
         @Override
-        public P getParent() throws IOException {
-            return fs.wrap(path.getParent());
+        public P getParent() {
+            Path parent = path.getParent();
+            return parent == null ? null : fs.wrap(parent);
         }
 
         @Override
-        public boolean isAbsolute() {
-            return path.isAbsolute();
-        }
-
-        @Override
+        @Nonnull
         public String getFileName() {
-            return path.getFileName().toString();
+            if (null != path.getFileName()) {
+                return path.getFileName().toString();
+            }
+            return path.toString(); // TODO: verify that root element is properly identified
         }
 
         @Override
         public String toString() {
-            return super.toString();
+            return path.toString();
         }
     }
 
@@ -142,8 +147,23 @@ public final class SftpFileSystems {
             this.root = new RootedPath(this, root);
         }
 
+        @Nonnull
+        @Override
+        public RootedPath getRoot() {
+            return root;
+        }
+
+        @Nonnull
+        @Override
+        public RootedPath getHome() {
+            return root;
+        }
+
         @Override
         protected RootedPath wrap(Path path) {
+            if (!path.toAbsolutePath().normalize().startsWith(root.path)) {
+                throw new IllegalArgumentException("Path out of boundary");
+            }
             return new RootedPath(this, path);
         }
     }
@@ -155,11 +175,32 @@ public final class SftpFileSystems {
         }
 
         @Override
-        public RootedPath getParent() throws IOException {
-            if (Files.isSameFile(((RootedFileSystem)fs).root.path, path)) {
-                return null;
+        public RootedPath normalize() {
+            return isRoot() ? ((RootedFileSystem)fs).root : super.normalize();
+        }
+
+        @Override
+        public RootedPath getParent() {
+            return (isRoot() ? null : super.getParent());
+        }
+
+        @Override
+        public RootedPath toRealPath(LinkOption... options) throws IOException {
+            return super.toRealPath(options);
+        }
+
+        private boolean isRoot() {
+            try {
+                return Files.isSameFile(((RootedFileSystem)fs).root.path, path);
+            } catch (IOException e) {
+                throw new IllegalStateException("Unexpected...", e); // TODO: Si puo' evitare?
             }
-            return super.getParent();
+        }
+
+        @Nonnull
+        @Override
+        public String getFileName() {
+            return isRoot() ? "" : super.getFileName();
         }
 
         @Override

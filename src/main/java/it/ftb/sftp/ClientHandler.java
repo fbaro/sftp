@@ -363,9 +363,61 @@ public final class ClientHandler<P extends SftpPath<P>> implements AutoCloseable
         public void visit(SshFxpOpen packet, Void parameter) {
             P fsPath = SftpPath.parse(fileSystem, packet.getFilename());
             try {
-                SeekableByteChannel fileChannel = fileSystem.newByteChannel(fsPath, ImmutableSet.of(StandardOpenOption.READ));
+                boolean appendRequested = false;
+                boolean truncateSet = false;
+                ImmutableSet.Builder<StandardOpenOption> openOptions = ImmutableSet.builder();
+                if (SshFxpOpen.AceMask.ACE4_READ_DATA.isSet(packet.getuDesideredAccess())) {
+                    openOptions.add(StandardOpenOption.READ);
+                }
+                if (SshFxpOpen.AceMask.ACE4_WRITE_DATA.isSet(packet.getuDesideredAccess())) {
+                    openOptions.add(StandardOpenOption.WRITE);
+                }
+                if (SshFxpOpen.AceMask.ACE4_APPEND_DATA.isSet(packet.getuDesideredAccess())) {
+                    appendRequested = true;
+                }
+                if (SshFxpOpen.AceMask.ACE4_SYNCHRONIZE.isSet(packet.getuDesideredAccess())) {
+                    openOptions.add(StandardOpenOption.DSYNC);
+                }
+
+                SshFxpOpen.OpenFlagsAccessDisposition accessDisposition = SshFxpOpen.OpenFlagsAccessDisposition.fromFlags(packet.getuFlags());
+                switch (accessDisposition) {
+                    case SSH_FXF_OPEN_OR_CREATE:
+                        openOptions.add(StandardOpenOption.CREATE);
+                        break;
+                    case SSH_FXF_CREATE_NEW:
+                        openOptions.add(StandardOpenOption.CREATE_NEW);
+                        break;
+                    case SSH_FXF_CREATE_TRUNCATE:
+                        openOptions.add(StandardOpenOption.TRUNCATE_EXISTING)
+                                .add(StandardOpenOption.CREATE);
+                        truncateSet = true;
+                        break;
+                    case SSH_FXF_OPEN_EXISTING:
+                        // No extra options for this
+                        break;
+                    case SSH_FXF_TRUNCATE_EXISTING:
+                        openOptions.add(StandardOpenOption.TRUNCATE_EXISTING);
+                        truncateSet = true;
+                        break;
+                    default:
+                        throw new IllegalStateException("Unsupported access disposition " + accessDisposition);
+                }
+                if (SshFxpOpen.OpenFlags.SSH_FXF_APPEND_DATA.isSet(packet.getuFlags())) {
+                    appendRequested = true;
+                }
+                if (SshFxpOpen.OpenFlags.SSH_FXF_DELETE_ON_CLOSE.isSet(packet.getuFlags())) {
+                    openOptions.add(StandardOpenOption.DELETE_ON_CLOSE);
+                }
+
+                if (appendRequested && !truncateSet) {
+                    // Both flags are not supported by Java
+                    openOptions.add(StandardOpenOption.APPEND);
+                }
+
+                ImmutableSet<StandardOpenOption> bOpenOptions = openOptions.build();
+                SeekableByteChannel fileChannel = fileSystem.newByteChannel(fsPath, bOpenOptions);
                 int handle = ++handlesCount;
-                openFiles.put(handle, new FileData<>(fileChannel, fsPath));
+                openFiles.put(handle, new FileData<>(fileChannel, fsPath, appendRequested));
                 writer.send(new SshFxpHandle(packet.getuRequestId(), Bytes.from(handle)));
             } catch (FileNotFoundException e) {
                 writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_NO_SUCH_FILE, "File not found", "en"));
@@ -410,6 +462,27 @@ public final class ClientHandler<P extends SftpPath<P>> implements AutoCloseable
                 }
                 data.flip();
                 writer.send(new SshFxpData(packet.getuRequestId(), Bytes.hold(data), numRead == -1));
+            } catch (IOException e) {
+                writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_FAILURE, e.getMessage(), "en"));
+            }
+        }
+
+        @Override
+        public void visit(SshFxpWrite packet, Void parameter) {
+            FileData fileData = openFiles.get(packet.getHandle().asInt());
+            if (fileData == null) {
+                writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_INVALID_HANDLE, "Handle not found", "en"));
+                return;
+            }
+            try {
+                if (!fileData.append) {
+                    fileData.channel.position(packet.getuOffset());
+                }
+                ByteBuffer toWrite = packet.getData().asBuffer();
+                while (toWrite.hasRemaining()) {
+                    fileData.channel.write(toWrite);
+                }
+                writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_OK, "", ""));
             } catch (IOException e) {
                 writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_FAILURE, e.getMessage(), "en"));
             }
@@ -470,10 +543,12 @@ public final class ClientHandler<P extends SftpPath<P>> implements AutoCloseable
     private static final class FileData<P extends SftpPath> implements Closeable {
         public final SeekableByteChannel channel;
         public final P path;
+        public final boolean append;
 
-        public FileData(SeekableByteChannel channel, P path) {
+        public FileData(SeekableByteChannel channel, P path, boolean append) {
             this.channel = channel;
             this.path = path;
+            this.append = append;
         }
 
         @Override

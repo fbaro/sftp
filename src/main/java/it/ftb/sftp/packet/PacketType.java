@@ -12,7 +12,7 @@ public enum PacketType {
     SSH_FXP_OPEN(3, SshFxpOpen.FACTORY),
     SSH_FXP_CLOSE(4, SshFxpClose.FACTORY),
     SSH_FXP_READ(5, SshFxpRead.FACTORY),
-    SSH_FXP_WRITE(6, null),
+    SSH_FXP_WRITE(6, SshFxpWrite.FACTORY),
     SSH_FXP_LSTAT(7, SshFxpLstat.FACTORY),
     SSH_FXP_FSTAT(8, SshFxpFstat.FACTORY),
     SSH_FXP_SETSTAT(9, null),

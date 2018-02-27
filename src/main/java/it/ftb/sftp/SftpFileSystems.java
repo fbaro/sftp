@@ -1,7 +1,8 @@
 package it.ftb.sftp;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.*;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterators;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -32,6 +33,11 @@ public final class SftpFileSystems {
         @Override
         public <A extends BasicFileAttributes> A readAttributes(P path, Class<A> type, LinkOption... options) throws IOException {
             return Files.readAttributes(path.path, type, options);
+        }
+
+        @Override
+        public void setAttribute(P path, String attribute, Object value, LinkOption... options) throws IOException {
+            Files.setAttribute(path.path, attribute, value, options);
         }
 
         @Override

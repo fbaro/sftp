@@ -71,4 +71,8 @@ public interface VoidPacketVisitor<P> {
     default void visit(SshFxpWrite packet, P parameter) {
         visit((AbstractPacket) packet, parameter);
     }
+
+    default void visit(SshFxpSetstat packet, P parameter) {
+        visit((AbstractPacket) packet, parameter);
+    }
 }

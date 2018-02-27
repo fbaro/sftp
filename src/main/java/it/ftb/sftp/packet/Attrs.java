@@ -226,7 +226,7 @@ public class Attrs implements BasicFileAttributes {
     }
 
     private void checkValid(Validity validity) {
-        if (isValid(validity)) {
+        if (!isValid(validity)) {
             throw new IllegalStateException("Attribute is not present");
         }
     }
@@ -449,7 +449,6 @@ public class Attrs implements BasicFileAttributes {
         when(validAttributeFlags, Validity.SSH_FILEXFER_ATTR_SIZE, () -> b.withSize(dec.readLong()));
         when(validAttributeFlags, Validity.SSH_FILEXFER_ATTR_ALLOCATION_SIZE, () -> b.withAllocationSize(dec.readLong()));
         when(validAttributeFlags, Validity.SSH_FILEXFER_ATTR_OWNERGROUP, () -> b.withOwnerGroup(dec.readString().getString(), dec.readString().getString()));
-        when(validAttributeFlags, Validity.SSH_FILEXFER_ATTR_OWNERGROUP, () -> b.withOwnerGroup(dec.readString().getString(), dec.readString().getString()));
         when(validAttributeFlags, Validity.SSH_FILEXFER_ATTR_PERMISSIONS, () -> b.withPermissions(dec.readInt()));
         whenSub(validAttributeFlags, Validity.SSH_FILEXFER_ATTR_ACCESSTIME,
                 () -> b.withAtime(dec.readLong(), dec.readInt()),
@@ -457,7 +456,7 @@ public class Attrs implements BasicFileAttributes {
         whenSub(validAttributeFlags, Validity.SSH_FILEXFER_ATTR_CREATETIME,
                 () -> b.withCreatetime(dec.readLong(), dec.readInt()),
                 () -> b.withCreatetime(dec.readLong(), 0));
-        whenSub(validAttributeFlags, Validity.SSH_FILEXFER_ATTR_MIME_TYPE,
+        whenSub(validAttributeFlags, Validity.SSH_FILEXFER_ATTR_MODIFYTIME,
                 () -> b.withMtime(dec.readLong(), dec.readInt()),
                 () -> b.withMtime(dec.readLong(), 0));
         whenSub(validAttributeFlags, Validity.SSH_FILEXFER_ATTR_CTIME,
@@ -472,7 +471,7 @@ public class Attrs implements BasicFileAttributes {
         when(validAttributeFlags, Validity.SSH_FILEXFER_ATTR_EXTENDED, () -> b.withExtensions(ExtensionPair.readAll(dec, dec.readInt())));
 
         if (b.validAttributeFlags != validAttributeFlags) {
-            throw new IllegalStateException("validAttributeFlags mismatch");
+            throw new IllegalStateException(String.format("validAttributeFlags mismatch(received %x, reconstructed %x)", validAttributeFlags, b.validAttributeFlags));
         }
         return b.build();
     }

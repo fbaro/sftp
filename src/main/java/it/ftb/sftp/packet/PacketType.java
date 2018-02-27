@@ -15,7 +15,7 @@ public enum PacketType {
     SSH_FXP_WRITE(6, SshFxpWrite.FACTORY),
     SSH_FXP_LSTAT(7, SshFxpLstat.FACTORY),
     SSH_FXP_FSTAT(8, SshFxpFstat.FACTORY),
-    SSH_FXP_SETSTAT(9, null),
+    SSH_FXP_SETSTAT(9, SshFxpSetstat.FACTORY),
     SSH_FXP_FSETSTAT(10, null),
     SSH_FXP_OPENDIR(11, SshFxpOpenDir.FACTORY),
     SSH_FXP_READDIR(12, SshFxpReadDir.FACTORY),

@@ -13,6 +13,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 /**
  * Interface to interact with the file system.
  * It is a slight variation on the FileSystem interface, supporting a single root element
+ *
  * @param <P> The SftpPath instances this SftpFileSystem returns
  */
 public interface SftpFileSystem<P extends SftpPath<P>> {
@@ -25,6 +26,8 @@ public interface SftpFileSystem<P extends SftpPath<P>> {
 
     <A extends BasicFileAttributes> A readAttributes(
             P path, Class<A> type, LinkOption... options) throws IOException;
+
+    void setAttribute(P path, String attribute, Object value, LinkOption... options) throws IOException;
 
     boolean isSymbolicLink(P path);
 

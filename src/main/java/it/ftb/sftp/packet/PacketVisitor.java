@@ -71,4 +71,8 @@ public interface PacketVisitor<P, R> {
     default R visit(SshFxpWrite packet, P parameter) {
         return visit((AbstractPacket) packet, parameter);
     }
+
+    default R visit(SshFxpSetstat packet, P parameter) {
+        return visit((AbstractPacket) packet, parameter);
+    }
 }

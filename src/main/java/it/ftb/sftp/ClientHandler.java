@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 public final class ClientHandler<P extends SftpPath<P>> implements AutoCloseable {
@@ -482,6 +483,20 @@ public final class ClientHandler<P extends SftpPath<P>> implements AutoCloseable
                 while (toWrite.hasRemaining()) {
                     fileData.channel.write(toWrite);
                 }
+                writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_OK, "", ""));
+            } catch (IOException e) {
+                writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_FAILURE, e.getMessage(), "en"));
+            }
+        }
+
+        @Override
+        public void visit(SshFxpSetstat packet, Void parameter) {
+            P path = SftpPath.parse(fileSystem, packet.getPath());
+            try {
+                if (packet.getAttrs().isValid(Attrs.Validity.SSH_FILEXFER_ATTR_MODIFYTIME)) {
+                    fileSystem.setAttribute(path, "basic:lastModifiedTime", FileTime.from(packet.getAttrs().getMtime(), TimeUnit.SECONDS));
+                }
+                // TODO: Support other attributes...
                 writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_OK, "", ""));
             } catch (IOException e) {
                 writer.send(new SshFxpStatus(packet.getuRequestId(), ErrorCode.SSH_FX_FAILURE, e.getMessage(), "en"));

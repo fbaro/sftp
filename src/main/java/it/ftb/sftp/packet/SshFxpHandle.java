@@ -39,10 +39,10 @@ public class SshFxpHandle extends ReplyPacket {
 
     public static final PacketFactory<SshFxpHandle> FACTORY = new PacketFactory<SshFxpHandle>() {
         @Override
-        public SshFxpHandle read(Decoder decoder) {
+        public void read(Decoder decoder, VoidPacketVisitor visitor) {
             int requestId = decoder.readInt();
             Bytes handle = decoder.readBytes();
-            return new SshFxpHandle(requestId, handle);
+            visitor.visitHandle(requestId, handle);
         }
     };
 }

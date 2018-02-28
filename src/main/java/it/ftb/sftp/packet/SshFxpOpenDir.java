@@ -38,10 +38,10 @@ public final class SshFxpOpenDir extends RequestPacket {
 
     public static final PacketFactory<SshFxpOpenDir> FACTORY = new PacketFactory<SshFxpOpenDir>() {
         @Override
-        public SshFxpOpenDir read(Decoder decoder) {
+        public void read(Decoder decoder, VoidPacketVisitor visitor) {
             int requestId = decoder.readInt();
             String path = decoder.readString().getString();
-            return new SshFxpOpenDir(requestId, path);
+            visitor.visitOpenDir(requestId, path);
         }
     };
 }

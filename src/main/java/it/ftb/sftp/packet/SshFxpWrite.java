@@ -55,12 +55,12 @@ public class SshFxpWrite extends RequestPacket {
 
     public static final PacketFactory<SshFxpWrite> FACTORY = new PacketFactory<SshFxpWrite>() {
         @Override
-        public SshFxpWrite read(Decoder decoder) {
+        public void read(Decoder decoder, VoidPacketVisitor visitor) {
             int requestId = decoder.readInt();
             Bytes handle = decoder.readBytes();
             long offset = decoder.readLong();
             Bytes data = decoder.readBytes();
-            return new SshFxpWrite(requestId, handle, offset, data);
+            visitor.visitWrite(requestId, handle, offset, data);
         }
     };
 }

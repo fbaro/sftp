@@ -38,10 +38,10 @@ public final class SshFxpAttrs extends RequestPacket {
 
     public static final PacketFactory<SshFxpAttrs> FACTORY = new PacketFactory<SshFxpAttrs>() {
         @Override
-        public SshFxpAttrs read(Decoder decoder) {
+        public void read(Decoder decoder, VoidPacketVisitor visitor) {
             int requestId = decoder.readInt();
             Attrs attrs = Attrs.read(decoder);
-            return new SshFxpAttrs(requestId, attrs);
+            visitor.visitAttrs(requestId, attrs);
         }
     };
 }

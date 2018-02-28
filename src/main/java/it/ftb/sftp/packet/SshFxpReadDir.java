@@ -39,10 +39,10 @@ public final class SshFxpReadDir extends RequestPacket {
 
     public static final PacketFactory<SshFxpReadDir> FACTORY = new PacketFactory<SshFxpReadDir>() {
         @Override
-        public SshFxpReadDir read(Decoder decoder) {
+        public void read(Decoder decoder, VoidPacketVisitor visitor) {
             int requestId = decoder.readInt();
             Bytes handle = decoder.readBytes();
-            return new SshFxpReadDir(requestId, handle);
+            visitor.visitReadDir(requestId, handle);
         }
     };
 }

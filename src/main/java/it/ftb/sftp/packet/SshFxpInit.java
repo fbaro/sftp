@@ -36,8 +36,8 @@ public class SshFxpInit extends AbstractPacket {
 
     public static final PacketFactory<SshFxpInit> FACTORY = new PacketFactory<SshFxpInit>() {
         @Override
-        public SshFxpInit read(Decoder decoder) {
-            return new SshFxpInit(decoder.readInt());
+        public void read(Decoder decoder, VoidPacketVisitor visitor) {
+            visitor.visitInit(decoder.readInt());
         }
     };
 }

@@ -62,14 +62,14 @@ public class SshFxpVersion extends AbstractPacket {
 
     public static final PacketFactory<SshFxpVersion> FACTORY = new PacketFactory<SshFxpVersion>() {
         @Override
-        public SshFxpVersion read(Decoder decoder) {
+        public void read(Decoder decoder, VoidPacketVisitor visitor) {
             int uVersion = decoder.readInt();
             ImmutableList.Builder<ExtensionPair> extensions = new ImmutableList.Builder<>();
             Optional<ExtensionPair> ep;
             while ((ep = ExtensionPair.read(decoder)).isPresent()) {
                 extensions.add(ep.get());
             }
-            return new SshFxpVersion(uVersion, extensions.build());
+            visitor.visitVersion(uVersion, extensions.build());
         }
     };
 }

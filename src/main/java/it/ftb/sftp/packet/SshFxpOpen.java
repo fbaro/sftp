@@ -171,13 +171,13 @@ public final class SshFxpOpen extends RequestPacket {
 
     public static final PacketFactory<SshFxpOpen> FACTORY = new PacketFactory<SshFxpOpen>() {
         @Override
-        public SshFxpOpen read(Decoder decoder) {
+        public void read(Decoder decoder, VoidPacketVisitor visitor) {
             int requestId = decoder.readInt();
             String filename = decoder.readString().getString();
             OptionalInt desideredAccess = decoder.readOptInt();
             OptionalInt flags = decoder.readOptInt();
             Optional<Attrs> attrs = Attrs.readOpt(decoder);
-            return new SshFxpOpen(requestId, filename, desideredAccess.orElse(0), flags.orElse(0), attrs.orElse(Attrs.EMPTY));
+            visitor.visitOpen(requestId, filename, desideredAccess.orElse(0), flags.orElse(0), attrs.orElse(Attrs.EMPTY));
         }
     };
 }

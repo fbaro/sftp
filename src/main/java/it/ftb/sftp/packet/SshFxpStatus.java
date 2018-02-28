@@ -42,12 +42,12 @@ public class SshFxpStatus extends ReplyPacket {
 
     public static final PacketFactory<SshFxpStatus> FACTORY = new PacketFactory<SshFxpStatus>() {
         @Override
-        public SshFxpStatus read(Decoder decoder) {
+        public void read(Decoder decoder, VoidPacketVisitor visitor) {
             int requestId = decoder.readInt();
             int errorCode = decoder.readInt();
             String errorMessage = decoder.readString().getString();
             String errorMessageLanguage = decoder.readString().getString();
-            return new SshFxpStatus(requestId, ErrorCode.fromCode(errorCode), errorMessage, errorMessageLanguage);
+            visitor.visitStatus(requestId, ErrorCode.fromCode(errorCode), errorMessage, errorMessageLanguage);
         }
     };
 }

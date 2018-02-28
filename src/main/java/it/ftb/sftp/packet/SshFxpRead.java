@@ -55,12 +55,12 @@ public class SshFxpRead extends RequestPacket {
 
     public static final PacketFactory<SshFxpRead> FACTORY = new PacketFactory<SshFxpRead>() {
         @Override
-        public SshFxpRead read(Decoder decoder) {
+        public void read(Decoder decoder, VoidPacketVisitor visitor) {
             int requestId = decoder.readInt();
             Bytes handle = decoder.readBytes();
             long offset = decoder.readLong();
             int length = decoder.readInt();
-            return new SshFxpRead(requestId, handle, offset, length);
+            visitor.visitRead(requestId, handle, offset, length);
         }
     };
 }

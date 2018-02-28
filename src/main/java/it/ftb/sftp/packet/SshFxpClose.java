@@ -39,10 +39,10 @@ public class SshFxpClose extends RequestPacket {
 
     public static final PacketFactory<SshFxpClose> FACTORY = new PacketFactory<SshFxpClose>() {
         @Override
-        public SshFxpClose read(Decoder decoder) {
+        public void read(Decoder decoder, VoidPacketVisitor visitor) {
             int requestId = decoder.readInt();
             Bytes handle = decoder.readBytes();
-            return new SshFxpClose(requestId, handle);
+            visitor.visitClose(requestId, handle);
         }
     };
 }

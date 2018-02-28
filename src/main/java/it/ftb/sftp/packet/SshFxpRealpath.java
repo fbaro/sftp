@@ -96,7 +96,7 @@ public class SshFxpRealpath extends RequestPacket {
 
     public static final PacketFactory<SshFxpRealpath> FACTORY = new PacketFactory<SshFxpRealpath>() {
         @Override
-        public SshFxpRealpath read(Decoder decoder) {
+        public void read(Decoder decoder, VoidPacketVisitor visitor) {
             int requestId = decoder.readInt();
             String originalPath = decoder.readString().getString();
             OptionalInt controlByte = decoder.readOptByte();
@@ -105,7 +105,7 @@ public class SshFxpRealpath extends RequestPacket {
             while ((cp = decoder.readOptString()).isPresent()) {
                 composePath.add(cp.get().getString());
             }
-            return new SshFxpRealpath(requestId, originalPath,
+            visitor.visitRealpath(requestId, originalPath,
                     ControlByte.fromCode(controlByte.orElse(ControlByte.SSH_FXP_REALPATH_NO_CHECK.getCode())),
                     composePath.build());
         }

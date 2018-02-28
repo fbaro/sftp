@@ -1,6 +1,5 @@
 package it.ftb.sftp;
 
-import it.ftb.sftp.packet.AbstractPacket;
 import it.ftb.sftp.packet.PacketType;
 import it.ftb.sftp.packet.VoidPacketVisitor;
 import org.slf4j.Logger;
@@ -78,9 +77,8 @@ public class ClientInputHandler implements AutoCloseable {
         if (packetType == null || packetType.getPacketFactory() == null) {
             LOG.warn("Ignoring unsupported packet type " + packetCode);
         } else {
-            AbstractPacket packet = packetType.getPacketFactory().read(packetDecoder);
-            LOG.debug("Received packet {}", packet);
-            packet.visit(processor);
+            LOG.debug("Received packet {}", packetCode);
+            packetType.getPacketFactory().read(packetDecoder, processor);
         }
     }
 }

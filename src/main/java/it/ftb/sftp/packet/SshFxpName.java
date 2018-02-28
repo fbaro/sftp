@@ -65,7 +65,7 @@ public class SshFxpName extends ReplyPacket {
 
     public static final PacketFactory<SshFxpName> FACTORY = new PacketFactory<SshFxpName>() {
         @Override
-        public SshFxpName read(Decoder decoder) {
+        public void read(Decoder decoder, VoidPacketVisitor visitor) {
             int uRequestId = decoder.readInt();
             int count = decoder.readInt();
             ImmutableList.Builder<String> names = new ImmutableList.Builder<>();
@@ -75,7 +75,7 @@ public class SshFxpName extends ReplyPacket {
                 attributes.add(Attrs.read(decoder));
             }
             Optional<Boolean> endOfList = decoder.readOptBoolean();
-            return new SshFxpName(uRequestId, names.build(), attributes.build(), endOfList);
+            visitor.visitName(uRequestId, names.build(), attributes.build(), endOfList);
         }
     };
 }

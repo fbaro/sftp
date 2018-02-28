@@ -47,11 +47,11 @@ public final class SshFxpFstat extends RequestPacket {
 
     public static final PacketFactory<SshFxpFstat> FACTORY = new PacketFactory<SshFxpFstat>() {
         @Override
-        public SshFxpFstat read(Decoder decoder) {
+        public void read(Decoder decoder, VoidPacketVisitor visitor) {
             int requestId = decoder.readInt();
             Bytes handle = decoder.readBytes();
             int uFlags = decoder.readInt();
-            return new SshFxpFstat(requestId, handle, uFlags);
+            visitor.visitFstat(requestId, handle, uFlags);
         }
     };
 }

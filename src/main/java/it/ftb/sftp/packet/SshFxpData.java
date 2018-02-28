@@ -51,11 +51,11 @@ public class SshFxpData extends ReplyPacket {
 
     public static final PacketFactory<SshFxpData> FACTORY = new PacketFactory<SshFxpData>() {
         @Override
-        public SshFxpData read(Decoder decoder) {
+        public void read(Decoder decoder, VoidPacketVisitor visitor) {
             int requestId = decoder.readInt();
             Bytes data = decoder.readBytes();
             Optional<Boolean> endOfFile = decoder.readOptBoolean();
-            return new SshFxpData(requestId, data, endOfFile.orElse(false));
+            visitor.visitData(requestId, data, endOfFile.orElse(false));
         }
     };
 }

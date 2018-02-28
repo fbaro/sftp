@@ -49,8 +49,8 @@ public class SshFxpName extends ReplyPacket {
     }
 
     @Override
-    public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
-        visitor.visitName(uRequestId, names, attributes, endOfList, parameter);
+    public void visit(VoidPacketVisitor visitor) {
+        visitor.visitName(uRequestId, names, attributes, endOfList);
     }
 
     @Override

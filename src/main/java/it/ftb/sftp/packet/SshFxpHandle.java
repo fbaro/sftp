@@ -25,8 +25,8 @@ public class SshFxpHandle extends ReplyPacket {
     }
 
     @Override
-    public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
-        visitor.visitHandle(uRequestId, handle, parameter);
+    public void visit(VoidPacketVisitor visitor) {
+        visitor.visitHandle(uRequestId, handle);
     }
 
     @Override

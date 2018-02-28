@@ -31,8 +31,8 @@ public final class SshFxpStat extends RequestPacket {
     }
 
     @Override
-    public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
-        visitor.visitStat(uRequestId, path, uFlags, parameter);
+    public void visit(VoidPacketVisitor visitor) {
+        visitor.visitStat(uRequestId, path, uFlags);
     }
 
     @Override

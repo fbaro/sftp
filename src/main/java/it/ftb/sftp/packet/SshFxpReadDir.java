@@ -25,8 +25,8 @@ public final class SshFxpReadDir extends RequestPacket {
     }
 
     @Override
-    public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
-        visitor.visitReadDir(uRequestId, handle, parameter);
+    public void visit(VoidPacketVisitor visitor) {
+        visitor.visitReadDir(uRequestId, handle);
     }
 
     @Override

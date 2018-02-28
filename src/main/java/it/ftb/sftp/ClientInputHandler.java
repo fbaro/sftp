@@ -17,13 +17,13 @@ public class ClientInputHandler implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(ClientInputHandler.class);
 
     private final ByteBuffer clientBuffer = ByteBuffer.allocate(0x10000);
-    private final VoidPacketVisitor<?> processor;
+    private final VoidPacketVisitor processor;
 
     /**
      * Creates a new ClientInputHandler, splitting packets and sending them to a processor.
      * @param processor The processor to send packets to
      */
-    public ClientInputHandler(VoidPacketVisitor<?> processor) {
+    public ClientInputHandler(VoidPacketVisitor processor) {
         this.processor = processor;
     }
 
@@ -70,7 +70,7 @@ public class ClientInputHandler implements AutoCloseable {
         }
     }
 
-    private static <V> void processPacket(ByteBuffer data, VoidPacketVisitor<V> processor) {
+    private static <V> void processPacket(ByteBuffer data, VoidPacketVisitor processor) {
         int length = data.getInt();
         PacketDecoder packetDecoder = new PacketDecoder(new BufferDecoder(data), length);
         int packetCode = packetDecoder.readByte() & 0xff;
@@ -80,7 +80,7 @@ public class ClientInputHandler implements AutoCloseable {
         } else {
             AbstractPacket packet = packetType.getPacketFactory().read(packetDecoder);
             LOG.debug("Received packet {}", packet);
-            packet.visit(null, processor);
+            packet.visit(processor);
         }
     }
 }

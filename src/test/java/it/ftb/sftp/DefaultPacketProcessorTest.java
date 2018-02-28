@@ -2,7 +2,6 @@ package it.ftb.sftp;
 
 import com.google.common.collect.ImmutableList;
 import it.ftb.sftp.packet.AbstractPacket;
-import it.ftb.sftp.packet.SshFxpInit;
 import it.ftb.sftp.packet.SshFxpVersion;
 import org.junit.Test;
 
@@ -20,7 +19,7 @@ public class DefaultPacketProcessorTest {
         SftpFileSystem<?> fs = mock(SftpFileSystem.class);
         Consumer<AbstractPacket> output = mock(Consumer.class);
         DefaultPacketProcessor<?> dpp = new DefaultPacketProcessor<>(fs, output);
-        dpp.visitInit(6, null);
+        dpp.visitInit(6);
         verify(output).accept(eq(new SshFxpVersion(6, ImmutableList.of())));
     }
 }

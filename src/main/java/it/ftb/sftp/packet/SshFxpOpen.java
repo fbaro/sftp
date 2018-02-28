@@ -154,8 +154,8 @@ public final class SshFxpOpen extends RequestPacket {
     }
 
     @Override
-    public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
-        visitor.visitOpen(uRequestId, filename, uDesideredAccess, uFlags, attrs, parameter);
+    public void visit(VoidPacketVisitor visitor) {
+        visitor.visitOpen(uRequestId, filename, uDesideredAccess, uFlags, attrs);
     }
 
     @Override

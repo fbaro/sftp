@@ -34,8 +34,8 @@ public class SshFxpVersion extends AbstractPacket {
     }
 
     @Override
-    public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
-        visitor.visitVersion(uVersion, extensions, parameter);
+    public void visit(VoidPacketVisitor visitor) {
+        visitor.visitVersion(uVersion, extensions);
     }
 
     @Override

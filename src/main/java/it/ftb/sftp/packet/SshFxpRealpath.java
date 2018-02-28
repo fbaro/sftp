@@ -80,8 +80,8 @@ public class SshFxpRealpath extends RequestPacket {
     }
 
     @Override
-    public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
-        visitor.visitRealpath(uRequestId, originalPath, controlByte,  composePath, parameter);
+    public void visit(VoidPacketVisitor visitor) {
+        visitor.visitRealpath(uRequestId, originalPath, controlByte,  composePath);
     }
 
     @Override

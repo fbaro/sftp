@@ -31,7 +31,7 @@ import java.util.function.Consumer;
  *
  * @param <P> The actual type of the SftpPath implementation
  */
-public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacketVisitor<Void> {
+public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacketVisitor {
 
     @SuppressWarnings("OctalInteger")
     private static final Map<PosixFilePermission, Integer> POSIX_FILE_PERMISSION_MASK =
@@ -131,12 +131,12 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
     }
 
     @Override
-    public void visit(Void parameter) {
+    public void visit() {
         LOG.debug("Received unexpected packet");
     }
 
     @Override
-    public void visitInit(int uVersion, Void parameter) {
+    public void visitInit(int uVersion) {
         // TODO: Version negotiation
         if (uVersion < 6) {
             throw new ProtocolException("Unsupported protocol version " + uVersion);
@@ -145,7 +145,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
     }
 
     @Override
-    public void visitLstat(int uRequestId, String sftpPath, int uFlags, Void parameter) {
+    public void visitLstat(int uRequestId, String sftpPath, int uFlags) {
         P path = SftpPath.parse(fileSystem, sftpPath);
         try {
             Attrs attrs = createAttrs(fileSystem, path, uFlags, LinkOption.NOFOLLOW_LINKS);
@@ -156,7 +156,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
     }
 
     @Override
-    public void visitStat(int uRequestId, String sftpPath, int uFlags, Void parameter) {
+    public void visitStat(int uRequestId, String sftpPath, int uFlags) {
         P path = SftpPath.parse(fileSystem, sftpPath);
         try {
             Attrs attrs = createAttrs(fileSystem, path, uFlags);
@@ -167,7 +167,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
     }
 
     @Override
-    public void visitFstat(int uRequestId, Bytes bHandle, int uFlags, Void parameter) {
+    public void visitFstat(int uRequestId, Bytes bHandle, int uFlags) {
         int handle = bHandle.asInt();
         P path;
         if (openFiles.containsKey(handle)) {
@@ -187,7 +187,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
     }
 
     @Override
-    public void visitRealpath(int uRequestId, String originalPath, SshFxpRealpath.ControlByte controlByte, ImmutableList<String> composePath, Void parameter) {
+    public void visitRealpath(int uRequestId, String originalPath, SshFxpRealpath.ControlByte controlByte, ImmutableList<String> composePath) {
         P path = SftpPath.parse(fileSystem, originalPath);
         for (String cp : composePath) {
             P pComponent = SftpPath.parse(fileSystem, cp);
@@ -239,7 +239,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
     }
 
     @Override
-    public void visitOpenDir(int uRequestId, String sftpPath, Void parameter) {
+    public void visitOpenDir(int uRequestId, String sftpPath) {
         P path = SftpPath.parse(fileSystem, sftpPath);
         if (fileSystem.exists(path) && !fileSystem.isDirectory(path)) {
             writer.accept(new SshFxpStatus(uRequestId,
@@ -260,7 +260,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
     }
 
     @Override
-    public void visitReadDir(int uRequestId, Bytes handle, Void parameter) {
+    public void visitReadDir(int uRequestId, Bytes handle) {
         DirectoryData<P> dirStream = openDirectories.get(handle.asInt());
         if (dirStream == null) {
             sendFailure(uRequestId, ErrorCode.SSH_FX_INVALID_HANDLE, "Handle not found");
@@ -281,7 +281,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
     }
 
     @Override
-    public void visitOpen(int uRequestId, String filename, int uDesideredAccess, int uFlags, Attrs attrs, Void parameter) {
+    public void visitOpen(int uRequestId, String filename, int uDesideredAccess, int uFlags, Attrs attrs) {
         P fsPath = SftpPath.parse(fileSystem, filename);
         try {
             boolean appendRequested = false;
@@ -348,7 +348,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
     }
 
     @Override
-    public void visitClose(int uRequestId, Bytes bHandle, Void parameter) {
+    public void visitClose(int uRequestId, Bytes bHandle) {
         int handle = bHandle.asInt();
         Closeable closeable = openFiles.remove(handle);
         if (closeable == null) {
@@ -367,7 +367,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
     }
 
     @Override
-    public void visitRead(int uRequestId, Bytes handle, long uOffset, int uLength, Void parameter) {
+    public void visitRead(int uRequestId, Bytes handle, long uOffset, int uLength) {
         FileData fileData = openFiles.get(handle.asInt());
         if (fileData == null) {
             sendFailure(uRequestId, ErrorCode.SSH_FX_INVALID_HANDLE, "Handle not found");
@@ -389,7 +389,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
     }
 
     @Override
-    public void visitWrite(int uRequestId, Bytes handle, long uOffset, Bytes data, Void parameter) {
+    public void visitWrite(int uRequestId, Bytes handle, long uOffset, Bytes data) {
         FileData fileData = openFiles.get(handle.asInt());
         if (fileData == null) {
             sendFailure(uRequestId, ErrorCode.SSH_FX_INVALID_HANDLE, "Handle not found");
@@ -410,7 +410,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
     }
 
     @Override
-    public void visitSetstat(int uRequestId, String sftpPath, Attrs attrs, Void parameter) {
+    public void visitSetstat(int uRequestId, String sftpPath, Attrs attrs) {
         P path = SftpPath.parse(fileSystem, sftpPath);
         try {
             if (attrs.isValid(Attrs.Validity.SSH_FILEXFER_ATTR_MODIFYTIME)) {

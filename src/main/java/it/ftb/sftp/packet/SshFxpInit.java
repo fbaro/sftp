@@ -23,8 +23,8 @@ public class SshFxpInit extends AbstractPacket {
     }
 
     @Override
-    public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
-        visitor.visitInit(uVersion, parameter);
+    public void visit(VoidPacketVisitor visitor) {
+        visitor.visitInit(uVersion);
     }
 
     @Override

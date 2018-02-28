@@ -24,8 +24,8 @@ public final class SshFxpAttrs extends RequestPacket {
     }
 
     @Override
-    public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
-        visitor.visitAttrs(uRequestId, attrs, parameter);
+    public void visit(VoidPacketVisitor visitor) {
+        visitor.visitAttrs(uRequestId, attrs);
     }
 
     @Override

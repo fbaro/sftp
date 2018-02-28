@@ -26,8 +26,8 @@ public class SshFxpStatus extends ReplyPacket {
     }
 
     @Override
-    public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
-        visitor.visitStatus(uRequestId, errorCode, errorMessage, errorMessageLanguage, parameter);
+    public void visit(VoidPacketVisitor visitor) {
+        visitor.visitStatus(uRequestId, errorCode, errorMessage, errorMessageLanguage);
     }
 
     @Override

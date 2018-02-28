@@ -5,79 +5,79 @@ import it.ftb.sftp.network.Bytes;
 
 import java.util.Optional;
 
-public interface VoidPacketVisitor<P> {
+public interface VoidPacketVisitor {
 
-    void visit(P parameter);
+    void visit();
 
-    default void visitInit(int uVersion, P parameter) {
-        visit(parameter);
+    default void visitInit(int uVersion) {
+        visit();
     }
 
-    default void visitVersion(int uVersion, ImmutableList<ExtensionPair> extensions, P parameter) {
-        visit(parameter);
+    default void visitVersion(int uVersion, ImmutableList<ExtensionPair> extensions) {
+        visit();
     }
 
-    default void visitOpen(int uRequestId, String filename, int uDesideredAccess, int uFlags, Attrs attrs, P parameter) {
-        visit(parameter);
+    default void visitOpen(int uRequestId, String filename, int uDesideredAccess, int uFlags, Attrs attrs) {
+        visit();
     }
 
-    default void visitOpenDir(int uRequestId, String path, P parameter) {
-        visit(parameter);
+    default void visitOpenDir(int uRequestId, String path) {
+        visit();
     }
 
-    default void visitHandle(int uRequestId, Bytes handle, P parameter) {
-        visit(parameter);
+    default void visitHandle(int uRequestId, Bytes handle) {
+        visit();
     }
 
-    default void visitClose(int uRequestId, Bytes handle, P parameter) {
-        visit(parameter);
+    default void visitClose(int uRequestId, Bytes handle) {
+        visit();
     }
 
-    default void visitReadDir(int uRequestId, Bytes handle, P parameter) {
-        visit(parameter);
+    default void visitReadDir(int uRequestId, Bytes handle) {
+        visit();
     }
 
-    default void visitRead(int uRequestId, Bytes handle, long uOffset, int uLength, P parameter) {
-        visit(parameter);
+    default void visitRead(int uRequestId, Bytes handle, long uOffset, int uLength) {
+        visit();
     }
 
-    default void visitData(int uRequestId, Bytes data, boolean endOfFile, P parameter) {
-        visit(parameter);
+    default void visitData(int uRequestId, Bytes data, boolean endOfFile) {
+        visit();
     }
 
-    default void visitStatus(int uRequestId, ErrorCode errorCode, String errorMessage, String errorMessageLanguage, P parameter) {
-        visit(parameter);
+    default void visitStatus(int uRequestId, ErrorCode errorCode, String errorMessage, String errorMessageLanguage) {
+        visit();
     }
 
-    default void visitName(int uRequestId, ImmutableList<String> names, ImmutableList<Attrs> attributes, Optional<Boolean> endOfList, P parameter) {
-        visit(parameter);
+    default void visitName(int uRequestId, ImmutableList<String> names, ImmutableList<Attrs> attributes, Optional<Boolean> endOfList) {
+        visit();
     }
 
-    default void visitLstat(int uRequestId, String path, int uFlags, P parameter) {
-        visit(parameter);
+    default void visitLstat(int uRequestId, String path, int uFlags) {
+        visit();
     }
 
-    default void visitStat(int uRequestId, String path, int uFlags, P parameter) {
-        visit(parameter);
+    default void visitStat(int uRequestId, String path, int uFlags) {
+        visit();
     }
 
-    default void visitFstat(int uRequestId, Bytes handle, int uFlags, P parameter) {
-        visit(parameter);
+    default void visitFstat(int uRequestId, Bytes handle, int uFlags) {
+        visit();
     }
 
-    default void visitRealpath(int uRequestId, String originalPath, SshFxpRealpath.ControlByte controlByte, ImmutableList<String> composePath, P parameter) {
-        visit(parameter);
+    default void visitRealpath(int uRequestId, String originalPath, SshFxpRealpath.ControlByte controlByte, ImmutableList<String> composePath) {
+        visit();
     }
 
-    default void visitAttrs(int uRequestId, Attrs attrs, P parameter) {
-        visit(parameter);
+    default void visitAttrs(int uRequestId, Attrs attrs) {
+        visit();
     }
 
-    default void visitWrite(int uRequestId, Bytes handle, long uOffset, Bytes data, P parameter) {
-        visit(parameter);
+    default void visitWrite(int uRequestId, Bytes handle, long uOffset, Bytes data) {
+        visit();
     }
 
-    default void visitSetstat(int uRequestId, String path, Attrs attrs, P parameter) {
-        visit(parameter);
+    default void visitSetstat(int uRequestId, String path, Attrs attrs) {
+        visit();
     }
 }

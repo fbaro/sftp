@@ -36,8 +36,8 @@ public class SshFxpData extends ReplyPacket {
     }
 
     @Override
-    public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
-        visitor.visitData(uRequestId, data, endOfFile, parameter);
+    public void visit(VoidPacketVisitor visitor) {
+        visitor.visitData(uRequestId, data, endOfFile);
     }
 
     @Override

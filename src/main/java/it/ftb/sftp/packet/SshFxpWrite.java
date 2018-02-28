@@ -39,8 +39,8 @@ public class SshFxpWrite extends RequestPacket {
     }
 
     @Override
-    public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
-        visitor.visitWrite(uRequestId, handle, uOffset, data, parameter);
+    public void visit(VoidPacketVisitor visitor) {
+        visitor.visitWrite(uRequestId, handle, uOffset, data);
     }
 
     @Override

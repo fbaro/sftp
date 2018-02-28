@@ -25,8 +25,8 @@ public class SshFxpClose extends RequestPacket {
     }
 
     @Override
-    public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
-        visitor.visitClose(uRequestId, handle, parameter);
+    public void visit(VoidPacketVisitor visitor) {
+        visitor.visitClose(uRequestId, handle);
     }
 
     @Override

@@ -16,7 +16,5 @@ public abstract class AbstractPacket {
 
     public abstract void write(Encoder enc);
 
-    public abstract <P, R> R visit(P parameter, PacketVisitor<? super P, ? extends R> visitor);
-
     public abstract <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor);
 }

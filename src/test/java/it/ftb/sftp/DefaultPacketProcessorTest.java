@@ -20,7 +20,7 @@ public class DefaultPacketProcessorTest {
         SftpFileSystem<?> fs = mock(SftpFileSystem.class);
         Consumer<AbstractPacket> output = mock(Consumer.class);
         DefaultPacketProcessor<?> dpp = new DefaultPacketProcessor<>(fs, output);
-        dpp.visit(new SshFxpInit(6), null);
+        dpp.visitInit(6, null);
         verify(output).accept(eq(new SshFxpVersion(6, ImmutableList.of())));
     }
 }

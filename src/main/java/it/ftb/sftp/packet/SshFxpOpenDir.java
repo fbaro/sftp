@@ -4,9 +4,6 @@ import com.google.common.base.MoreObjects;
 import it.ftb.sftp.network.Decoder;
 import it.ftb.sftp.network.Encoder;
 
-import java.util.Optional;
-import java.util.OptionalInt;
-
 public final class SshFxpOpenDir extends RequestPacket {
 
     private final String path;
@@ -27,13 +24,8 @@ public final class SshFxpOpenDir extends RequestPacket {
     }
 
     @Override
-    public <P, R> R visit(P parameter, PacketVisitor<? super P, ? extends R> visitor) {
-        return visitor.visit(this, parameter);
-    }
-
-    @Override
     public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
-        visitor.visit(this, parameter);
+        visitor.visitOpenDir(uRequestId, path, parameter);
     }
 
     @Override

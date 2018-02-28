@@ -39,13 +39,8 @@ public class SshFxpRead extends RequestPacket {
     }
 
     @Override
-    public <P, R> R visit(P parameter, PacketVisitor<? super P, ? extends R> visitor) {
-        return visitor.visit(this, parameter);
-    }
-
-    @Override
     public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
-        visitor.visit(this, parameter);
+        visitor.visitRead(uRequestId, handle, uOffset, uLength, parameter);
     }
 
     @Override

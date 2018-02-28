@@ -1,78 +1,83 @@
 package it.ftb.sftp.packet;
 
+import com.google.common.collect.ImmutableList;
+import it.ftb.sftp.network.Bytes;
+
+import java.util.Optional;
+
 public interface VoidPacketVisitor<P> {
 
-    void visit(AbstractPacket packet, P parameter);
+    void visit(P parameter);
 
-    default void visit(SshFxpInit packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitInit(int uVersion, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpVersion packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitVersion(int uVersion, ImmutableList<ExtensionPair> extensions, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpOpen packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitOpen(int uRequestId, String filename, int uDesideredAccess, int uFlags, Attrs attrs, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpOpenDir packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitOpenDir(int uRequestId, String path, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpHandle packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitHandle(int uRequestId, Bytes handle, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpClose packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitClose(int uRequestId, Bytes handle, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpReadDir packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitReadDir(int uRequestId, Bytes handle, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpRead packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitRead(int uRequestId, Bytes handle, long uOffset, int uLength, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpData packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitData(int uRequestId, Bytes data, boolean endOfFile, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpStatus packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitStatus(int uRequestId, ErrorCode errorCode, String errorMessage, String errorMessageLanguage, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpName packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitName(int uRequestId, ImmutableList<String> names, ImmutableList<Attrs> attributes, Optional<Boolean> endOfList, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpLstat packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitLstat(int uRequestId, String path, int uFlags, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpStat packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitStat(int uRequestId, String path, int uFlags, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpFstat packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitFstat(int uRequestId, Bytes handle, int uFlags, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpRealpath packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitRealpath(int uRequestId, String originalPath, SshFxpRealpath.ControlByte controlByte, ImmutableList<String> composePath, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpAttrs packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitAttrs(int uRequestId, Attrs attrs, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpWrite packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitWrite(int uRequestId, Bytes handle, long uOffset, Bytes data, P parameter) {
+        visit(parameter);
     }
 
-    default void visit(SshFxpSetstat packet, P parameter) {
-        visit((AbstractPacket) packet, parameter);
+    default void visitSetstat(int uRequestId, String path, Attrs attrs, P parameter) {
+        visit(parameter);
     }
 }

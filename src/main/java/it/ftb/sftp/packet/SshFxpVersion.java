@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableList;
 import it.ftb.sftp.network.Decoder;
 import it.ftb.sftp.network.Encoder;
 
+import java.util.Objects;
 import java.util.Optional;
 
 public class SshFxpVersion extends AbstractPacket {
@@ -40,6 +41,20 @@ public class SshFxpVersion extends AbstractPacket {
     @Override
     public <P> void visit(P parameter, VoidPacketVisitor<? super P> visitor) {
         visitor.visit(this, parameter);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        SshFxpVersion that = (SshFxpVersion) o;
+        return uVersion == that.uVersion &&
+                Objects.equals(extensions, that.extensions);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(uVersion, extensions);
     }
 
     @Override

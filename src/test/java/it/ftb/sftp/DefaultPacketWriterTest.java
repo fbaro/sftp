@@ -4,20 +4,21 @@ import it.ftb.sftp.packet.PacketType;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
-import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class PacketEncoderTest {
+public class DefaultPacketWriterTest {
 
     @Test
     public void testWritingShortPacket() {
         HoldingChannel output = new HoldingChannel();
-        PacketEncoder encoder = new PacketEncoder(output);
-        encoder.write(PacketType.SSH_FXP_INIT, enc -> {
+        DefaultPacketWriter encoder = new DefaultPacketWriter(output);
+        encoder.write(enc -> {
+            enc.write((byte) 1);
             enc.write(0xcafebabe);
             enc.write("0123");
         });
@@ -28,8 +29,9 @@ public class PacketEncoderTest {
     @Test
     public void testWritingLongPacket() {
         HoldingChannel output = new HoldingChannel();
-        PacketEncoder encoder = new PacketEncoder(output);
-        encoder.write(PacketType.SSH_FXP_INIT, enc -> {
+        DefaultPacketWriter encoder = new DefaultPacketWriter(output);
+        encoder.write(enc -> {
+            enc.write((byte) 1);
             for (int i = 0; i < 10000; i++) { //
                 enc.write("0123456789ab"); // 4 + 12 bytes
             }
@@ -50,26 +52,16 @@ public class PacketEncoderTest {
         return data;
     }
 
-    private static final class HoldingChannel implements WritableByteChannel {
+    private static final class HoldingChannel implements Consumer<ByteBuffer> {
 
         final List<ByteBuffer> buffers = new ArrayList<>();
 
         @Override
-        public int write(ByteBuffer src) {
+        public void accept(ByteBuffer src) {
             ByteBuffer copy = ByteBuffer.allocate(src.remaining());
             copy.put(src);
             copy.flip();
             buffers.add(copy);
-            return copy.remaining();
-        }
-
-        @Override
-        public boolean isOpen() {
-            return true;
-        }
-
-        @Override
-        public void close() {
         }
     }
 }

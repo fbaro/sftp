@@ -49,6 +49,10 @@ public enum PacketType {
         return code;
     }
 
+    public byte getCodeAsByte() {
+        return (byte) code;
+    }
+
     public PacketFactory<?> getPacketFactory() {
         return packetFactory;
     }

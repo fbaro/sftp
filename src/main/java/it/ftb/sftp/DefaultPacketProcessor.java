@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 /**
  * Standard implementation of the SFTP protocol.
@@ -120,12 +119,12 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
     private static final Logger LOG = LoggerFactory.getLogger(DefaultPacketProcessor.class);
 
     protected final SftpFileSystem<P> fileSystem;
-    protected final Consumer<? super AbstractPacket> writer;
+    protected final VoidPacketVisitor writer;
     protected final Map<Integer, FileData<P>> openFiles = new HashMap<>();               // TODO: Limitare il numero di entries
     protected final Map<Integer, DirectoryData<P>> openDirectories = new HashMap<>();    // TODO: Limitare il numero di entries
     protected int handlesCount = 0;
 
-    public DefaultPacketProcessor(SftpFileSystem<P> fileSystem, Consumer<? super AbstractPacket> writer) {
+    public DefaultPacketProcessor(SftpFileSystem<P> fileSystem, VoidPacketVisitor writer) {
         this.fileSystem = fileSystem;
         this.writer = writer;
     }
@@ -141,7 +140,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
         if (uVersion < 6) {
             throw new ProtocolException("Unsupported protocol version " + uVersion);
         }
-        writer.accept(new SshFxpVersion(6, ImmutableList.of()));
+        writer.visitVersion(6, ImmutableList.of());
     }
 
     @Override
@@ -149,7 +148,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
         P path = SftpPath.parse(fileSystem, sftpPath);
         try {
             Attrs attrs = createAttrs(fileSystem, path, uFlags, LinkOption.NOFOLLOW_LINKS);
-            writer.accept(new SshFxpAttrs(uRequestId, attrs));
+            writer.visitAttrs(uRequestId, attrs);
         } catch (IOException e) {
             sendFailure(uRequestId, ErrorCode.SSH_FX_FAILURE, e);
         }
@@ -160,7 +159,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
         P path = SftpPath.parse(fileSystem, sftpPath);
         try {
             Attrs attrs = createAttrs(fileSystem, path, uFlags);
-            writer.accept(new SshFxpAttrs(uRequestId, attrs));
+            writer.visitAttrs(uRequestId, attrs);
         } catch (IOException e) {
             sendFailure(uRequestId, ErrorCode.SSH_FX_FAILURE, e);
         }
@@ -180,7 +179,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
         }
         try {
             Attrs attrs = createAttrs(fileSystem, path, uFlags);
-            writer.accept(new SshFxpAttrs(uRequestId, attrs));
+            writer.visitAttrs(uRequestId, attrs);
         } catch (IOException e) {
             sendFailure(uRequestId, ErrorCode.SSH_FX_FAILURE, e);
         }
@@ -200,24 +199,24 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
         path = path.normalize();
         switch (controlByte) {
             case SSH_FXP_REALPATH_NO_CHECK:
-                writer.accept(new SshFxpName(uRequestId,
+                writer.visitName(uRequestId,
                         ImmutableList.of(SftpPath.toString(fileSystem, path)),
                         ImmutableList.of(Attrs.EMPTY),
-                        Optional.of(true)));
+                        Optional.of(true));
                 break;
             case SSH_FXP_REALPATH_STAT_IF:
                 try {
                     path = path.toRealPath();
                     Attrs attrs = createAttrs(fileSystem, path);
-                    writer.accept(new SshFxpName(uRequestId,
+                    writer.visitName(uRequestId,
                             ImmutableList.of(SftpPath.toString(fileSystem, path)),
                             ImmutableList.of(attrs),
-                            Optional.of(true)));
+                            Optional.of(true));
                 } catch (IOException e) {
-                    writer.accept(new SshFxpName(uRequestId,
+                    writer.visitName(uRequestId,
                             ImmutableList.of(SftpPath.toString(fileSystem, path)),
                             ImmutableList.of(Attrs.EMPTY),
-                            Optional.of(true)));
+                            Optional.of(true));
                 }
                 break;
 
@@ -225,10 +224,10 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
                 try {
                     path = path.toRealPath();
                     Attrs attrs = createAttrs(fileSystem, path);
-                    writer.accept(new SshFxpName(uRequestId,
+                    writer.visitName(uRequestId,
                             ImmutableList.of(SftpPath.toString(fileSystem, path)),
                             ImmutableList.of(attrs),
-                            Optional.of(true)));
+                            Optional.of(true));
                 } catch (IOException e) {
                     sendFailure(uRequestId, ErrorCode.SSH_FX_NO_SUCH_FILE, e);
                 }
@@ -242,15 +241,15 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
     public void visitOpenDir(int uRequestId, String sftpPath) {
         P path = SftpPath.parse(fileSystem, sftpPath);
         if (fileSystem.exists(path) && !fileSystem.isDirectory(path)) {
-            writer.accept(new SshFxpStatus(uRequestId,
+            writer.visitStatus(uRequestId,
                     ErrorCode.SSH_FX_NOT_A_DIRECTORY,
-                    null, null));
+                    null, null);
         } else {
             try {
                 DirectoryStream<P> dirStream = fileSystem.newDirectoryStream(path);
                 int handle = ++handlesCount;
                 openDirectories.put(handle, new DirectoryData<>(path, dirStream));
-                writer.accept(new SshFxpHandle(uRequestId, Bytes.from(handle)));
+                writer.visitHandle(uRequestId, Bytes.from(handle));
             } catch (FileNotFoundException e) {
                 sendFailure(uRequestId, ErrorCode.SSH_FX_NO_SUCH_FILE, "File not found");
             } catch (IOException e) {
@@ -276,7 +275,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
                     attributes.add(Attrs.EMPTY);
                 }
             }
-            writer.accept(new SshFxpName(uRequestId, names.build(), attributes.build(), !dirStream.iterator.hasNext()));
+            writer.visitName(uRequestId, names.build(), attributes.build(), Optional.of(!dirStream.iterator.hasNext()));
         }
     }
 
@@ -339,7 +338,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
             SeekableByteChannel fileChannel = fileSystem.newByteChannel(fsPath, bOpenOptions);
             int handle = ++handlesCount;
             openFiles.put(handle, new FileData<>(fileChannel, fsPath, appendRequested));
-            writer.accept(new SshFxpHandle(uRequestId, Bytes.from(handle)));
+            writer.visitHandle(uRequestId, Bytes.from(handle));
         } catch (FileNotFoundException e) {
             sendFailure(uRequestId, ErrorCode.SSH_FX_NO_SUCH_FILE, "File not found");
         } catch (IOException e) {
@@ -359,7 +358,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
         } else {
             try {
                 closeable.close();
-                writer.accept(new SshFxpStatus(uRequestId, ErrorCode.SSH_FX_OK, "", ""));
+                writer.visitStatus(uRequestId, ErrorCode.SSH_FX_OK, "", "");
             } catch (IOException e) {
                 sendFailure(uRequestId, ErrorCode.SSH_FX_FAILURE, e);
             }
@@ -382,7 +381,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
                 // Keep reading
             }
             data.flip();
-            writer.accept(new SshFxpData(uRequestId, Bytes.hold(data), numRead == -1));
+            writer.visitData(uRequestId, Bytes.hold(data), numRead == -1);
         } catch (IOException e) {
             sendFailure(uRequestId, ErrorCode.SSH_FX_FAILURE, e);
         }
@@ -403,7 +402,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
             while (toWrite.hasRemaining()) {
                 fileData.channel.write(toWrite);
             }
-            writer.accept(new SshFxpStatus(uRequestId, ErrorCode.SSH_FX_OK, "", ""));
+            writer.visitStatus(uRequestId, ErrorCode.SSH_FX_OK, "", "");
         } catch (IOException e) {
             sendFailure(uRequestId, ErrorCode.SSH_FX_FAILURE, e);
         }
@@ -417,7 +416,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
                 fileSystem.setAttribute(path, "basic:lastModifiedTime", FileTime.from(attrs.getMtime(), TimeUnit.SECONDS));
             }
             // TODO: Support other attributes...
-            writer.accept(new SshFxpStatus(uRequestId, ErrorCode.SSH_FX_OK, "", ""));
+            writer.visitStatus(uRequestId, ErrorCode.SSH_FX_OK, "", "");
         } catch (IOException e) {
             sendFailure(uRequestId, ErrorCode.SSH_FX_FAILURE, e);
         }
@@ -428,7 +427,7 @@ public class DefaultPacketProcessor<P extends SftpPath<P>> implements VoidPacket
     }
 
     protected void sendFailure(int uRequestId, ErrorCode errorCode, String message) {
-        writer.accept(new SshFxpStatus(uRequestId, errorCode, message, "en"));
+        writer.visitStatus(uRequestId, errorCode, message, "en");
     }
 
     public static class DirectoryData<P> implements Closeable {

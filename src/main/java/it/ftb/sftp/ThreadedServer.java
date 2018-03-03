@@ -116,8 +116,14 @@ public class ThreadedServer {
         }
 
         private <P extends SftpPath<P>> void run(SftpFileSystem<P> fs) throws IOException {
-            PacketEncoder packetEncoder = new PacketEncoder(out);
-            DefaultPacketProcessor<P> processor = new DefaultPacketProcessor<>(fs, packetEncoder::write);
+            DefaultPacketWriter packetEncoder = new DefaultPacketWriter(bb -> {
+                try {
+                    out.write(bb);
+                } catch (IOException e) {
+                    throw new RuntimeIOException(e);
+                }
+            });
+            DefaultPacketProcessor<P> processor = new DefaultPacketProcessor<>(fs, packetEncoder);
             try (ClientInputHandler handler = new ClientInputHandler(processor)) {
                 ByteBuffer buf = ByteBuffer.allocate(0x10000);
                 while (-1 != in.read(buf)) {

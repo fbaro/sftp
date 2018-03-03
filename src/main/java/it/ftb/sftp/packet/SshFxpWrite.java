@@ -1,57 +1,9 @@
 package it.ftb.sftp.packet;
 
-import com.google.common.base.MoreObjects;
 import it.ftb.sftp.network.Bytes;
 import it.ftb.sftp.network.Decoder;
-import it.ftb.sftp.network.Encoder;
 
-public class SshFxpWrite extends RequestPacket {
-
-    private final Bytes handle;
-    private final long uOffset;
-    private final Bytes data;
-
-    private SshFxpWrite(int uRequestId, Bytes handle, long uOffset, Bytes data) {
-        super(PacketType.SSH_FXP_WRITE, uRequestId);
-        this.handle = handle;
-        this.uOffset = uOffset;
-        this.data = data;
-    }
-
-    public Bytes getHandle() {
-        return handle;
-    }
-
-    public long getuOffset() {
-        return uOffset;
-    }
-
-    public Bytes getData() {
-        return data;
-    }
-
-    @Override
-    public void write(Encoder enc) {
-        enc.write(uRequestId)
-                .write(handle)
-                .write(uOffset)
-                .write(data);
-    }
-
-    @Override
-    public void visit(VoidPacketVisitor visitor) {
-        visitor.visitWrite(uRequestId, handle, uOffset, data);
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this)
-                .add("handle", handle)
-                .add("uOffset", uOffset)
-                .add("data", data)
-                .add("uRequestId", uRequestId)
-                .toString();
-    }
+public class SshFxpWrite {
 
     public static final PacketFactory<SshFxpWrite> FACTORY = new PacketFactory<SshFxpWrite>() {
         @Override

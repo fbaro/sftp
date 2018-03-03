@@ -1,16 +1,14 @@
 package it.ftb.sftp.packet;
 
-import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 import it.ftb.sftp.network.Decoder;
-import it.ftb.sftp.network.Encoder;
 
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.stream.Collectors;
 
-public final class SshFxpOpen extends RequestPacket {
+public final class SshFxpOpen {
 
     public enum AceMask {
         ACE4_READ_DATA(0x00000001),
@@ -113,60 +111,6 @@ public final class SshFxpOpen extends RequestPacket {
         public int unset(int aceMask) {
             return aceMask ^ ~maskBit;
         }
-    }
-
-    private final String filename;
-    private final int uDesideredAccess;
-    private final int uFlags;
-    private final Attrs attrs;
-
-    private SshFxpOpen(int uRequestId, String filename, int uDesideredAccess, int uFlags, Attrs attrs) {
-        super(PacketType.SSH_FXP_OPEN, uRequestId);
-        this.filename = filename;
-        this.uDesideredAccess = uDesideredAccess;
-        this.uFlags = uFlags;
-        this.attrs = attrs;
-    }
-
-    public String getFilename() {
-        return filename;
-    }
-
-    public int getuDesideredAccess() {
-        return uDesideredAccess;
-    }
-
-    public int getuFlags() {
-        return uFlags;
-    }
-
-    public Attrs getAttrs() {
-        return attrs;
-    }
-
-    @Override
-    public void write(Encoder enc) {
-        enc.write(uRequestId);
-        enc.write(filename);
-        enc.write(uDesideredAccess);
-        enc.write(uFlags);
-        attrs.write(enc);
-    }
-
-    @Override
-    public void visit(VoidPacketVisitor visitor) {
-        visitor.visitOpen(uRequestId, filename, uDesideredAccess, uFlags, attrs);
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this)
-                .add("filename", filename)
-                .add("uDesideredAccess", uDesideredAccess)
-                .add("uFlags", uFlags)
-                .add("attrs", attrs)
-                .add("uRequestId", uRequestId)
-                .toString();
     }
 
     public static final PacketFactory<SshFxpOpen> FACTORY = new PacketFactory<SshFxpOpen>() {

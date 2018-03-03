@@ -1,10 +1,8 @@
 package it.ftb.sftp.packet;
 
-import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import it.ftb.sftp.network.Decoder;
-import it.ftb.sftp.network.Encoder;
 import it.ftb.sftp.network.StringWithLength;
 
 import java.util.Arrays;
@@ -12,7 +10,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.stream.Collectors;
 
-public class SshFxpRealpath extends RequestPacket {
+public class SshFxpRealpath {
 
     public enum ControlByte {
         SSH_FXP_REALPATH_NO_CHECK(1),
@@ -28,6 +26,7 @@ public class SshFxpRealpath extends RequestPacket {
         public int getCode() {
             return code;
         }
+
         public static ControlByte fromCode(int code) {
             ControlByte ret = TYPES_BY_CODE.get(code);
             if (ret == null) {
@@ -40,58 +39,6 @@ public class SshFxpRealpath extends RequestPacket {
                 ImmutableMap.copyOf(
                         Arrays.stream(ControlByte.values())
                                 .collect(Collectors.toMap(ControlByte::getCode, x -> x)));
-    }
-
-    private final String originalPath;
-    private final ControlByte controlByte;
-    private final ImmutableList<String> composePath;
-
-    public SshFxpRealpath(int uRequestId, String originalPath, ControlByte controlByte, ImmutableList<String> composePath) {
-        super(PacketType.SSH_FXP_REALPATH, uRequestId);
-        this.originalPath = originalPath;
-        this.controlByte = controlByte;
-        this.composePath = composePath;
-    }
-
-    public String getOriginalPath() {
-        return originalPath;
-    }
-
-    public ControlByte getControlByte() {
-        return controlByte;
-    }
-
-    public ImmutableList<String> getComposePath() {
-        return composePath;
-    }
-
-    @Override
-    public void write(Encoder enc) {
-        enc.write(uRequestId);
-        enc.write(originalPath);
-        if (controlByte == ControlByte.SSH_FXP_REALPATH_NO_CHECK
-            && composePath.isEmpty()) {
-            return;
-        }
-        enc.write((byte) controlByte.getCode());
-        for (String cp : composePath) {
-            enc.write(cp);
-        }
-    }
-
-    @Override
-    public void visit(VoidPacketVisitor visitor) {
-        visitor.visitRealpath(uRequestId, originalPath, controlByte,  composePath);
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this)
-                .add("originalPath", originalPath)
-                .add("controlByte", controlByte)
-                .add("composePath", composePath)
-                .add("uRequestId", uRequestId)
-                .toString();
     }
 
     public static final PacketFactory<SshFxpRealpath> FACTORY = new PacketFactory<SshFxpRealpath>() {

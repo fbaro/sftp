@@ -16,8 +16,8 @@ import java.util.function.Consumer;
 
 public final class DefaultPacketWriter implements VoidPacketVisitor {
 
-    private final DumpingEncoder dumpingEncoder = new DumpingEncoder();
-    private final WritingEncoder writingEncoder = new WritingEncoder();
+    private final NoLengthPacketWriter dumpingEncoder = new NoLengthPacketWriter(new DumpingEncoder());
+    private final NoLengthPacketWriter writingEncoder = new NoLengthPacketWriter(new WritingEncoder());
     private final ByteBuffer buffer = ByteBuffer.allocateDirect(0x10000);
     private final Consumer<ByteBuffer> networkSend;
     private int flushedBytes = 0;
@@ -33,95 +33,90 @@ public final class DefaultPacketWriter implements VoidPacketVisitor {
 
     @Override
     public void visitVersion(int uVersion, ImmutableList<ExtensionPair> extensions) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitVersion(uVersion, extensions));
+        write(visitor -> visitor.visitVersion(uVersion, extensions));
     }
 
     @Override
     public void visitOpen(int uRequestId, String filename, int uDesideredAccess, int uFlags, Attrs attrs) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitOpen(uRequestId, filename, uDesideredAccess, uFlags, attrs));
+        write(visitor -> visitor.visitOpen(uRequestId, filename, uDesideredAccess, uFlags, attrs));
     }
 
     @Override
     public void visitOpenDir(int uRequestId, String path) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitOpenDir(uRequestId, path));
+        write(visitor -> visitor.visitOpenDir(uRequestId, path));
     }
 
     @Override
     public void visitHandle(int uRequestId, Bytes handle) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitHandle(uRequestId, handle));
+        write(visitor -> visitor.visitHandle(uRequestId, handle));
     }
 
     @Override
     public void visitClose(int uRequestId, Bytes handle) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitClose(uRequestId, handle));
+        write(visitor -> visitor.visitClose(uRequestId, handle));
     }
 
     @Override
     public void visitReadDir(int uRequestId, Bytes handle) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitReadDir(uRequestId, handle));
+        write(visitor -> visitor.visitReadDir(uRequestId, handle));
     }
 
     @Override
     public void visitRead(int uRequestId, Bytes handle, long uOffset, int uLength) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitRead(uRequestId, handle, uOffset, uLength));
+        write(visitor -> visitor.visitRead(uRequestId, handle, uOffset, uLength));
     }
 
     @Override
     public void visitData(int uRequestId, Bytes data, boolean endOfFile) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitData(uRequestId, data, endOfFile));
+        write(visitor -> visitor.visitData(uRequestId, data, endOfFile));
     }
 
     @Override
     public void visitStatus(int uRequestId, ErrorCode errorCode, String errorMessage, String errorMessageLanguage) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitStatus(uRequestId, errorCode, errorMessage, errorMessageLanguage));
+        write(visitor -> visitor.visitStatus(uRequestId, errorCode, errorMessage, errorMessageLanguage));
     }
 
     @Override
     public void visitName(int uRequestId, ImmutableList<String> names, ImmutableList<Attrs> attributes, Optional<Boolean> endOfList) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitName(uRequestId, names, attributes, endOfList));
+        write(visitor -> visitor.visitName(uRequestId, names, attributes, endOfList));
     }
 
     @Override
     public void visitLstat(int uRequestId, String path, int uFlags) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitLstat(uRequestId, path, uFlags));
+        write(visitor -> visitor.visitLstat(uRequestId, path, uFlags));
     }
 
     @Override
     public void visitStat(int uRequestId, String path, int uFlags) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitStat(uRequestId, path, uFlags));
+        write(visitor -> visitor.visitStat(uRequestId, path, uFlags));
     }
 
     @Override
     public void visitFstat(int uRequestId, Bytes handle, int uFlags) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitFstat(uRequestId, handle, uFlags));
+        write(visitor -> visitor.visitFstat(uRequestId, handle, uFlags));
     }
 
     @Override
     public void visitRealpath(int uRequestId, String originalPath, SshFxpRealpath.ControlByte controlByte, ImmutableList<String> composePath) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitRealpath(uRequestId, originalPath, controlByte, composePath));
+        write(visitor -> visitor.visitRealpath(uRequestId, originalPath, controlByte, composePath));
     }
 
     @Override
     public void visitAttrs(int uRequestId, Attrs attrs) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitAttrs(uRequestId, attrs));
+        write(visitor -> visitor.visitAttrs(uRequestId, attrs));
     }
 
     @Override
     public void visitWrite(int uRequestId, Bytes handle, long uOffset, Bytes data) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitWrite(uRequestId, handle, uOffset, data));
+        write(visitor -> visitor.visitWrite(uRequestId, handle, uOffset, data));
     }
 
     @Override
     public void visitSetstat(int uRequestId, String path, Attrs attrs) {
-        write(encoder -> new NoLengthPacketWriter(encoder).visitSetstat(uRequestId, path, attrs));
+        write(visitor -> visitor.visitSetstat(uRequestId, path, attrs));
     }
 
-    /**
-     * Package private only for testing.
-     *
-     * @param writer Method to write the required bytes
-     */
-    void write(Consumer<Encoder> writer) {
+    private void write(Consumer<VoidPacketVisitor> writer) {
         buffer.position(4);
         flushedBytes = 0;
 
@@ -235,11 +230,11 @@ public final class DefaultPacketWriter implements VoidPacketVisitor {
         }
     }
 
-    public static final class NoLengthPacketWriter implements VoidPacketVisitor {
+    public static class NoLengthPacketWriter implements VoidPacketVisitor {
 
-        private final Encoder enc;
+        protected final Encoder enc;
 
-        public NoLengthPacketWriter(Encoder encoder) {
+        protected NoLengthPacketWriter(Encoder encoder) {
             this.enc = encoder;
         }
 
